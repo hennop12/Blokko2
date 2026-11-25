@@ -1,0 +1,1983 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BBL dashboard · Factory 11</title>
+<style>
+/* =====================================================================
+   DESIGN TOKENS — change colours, type and spacing here only.
+   Layout: sticky top bar with tabs, one view at a time, cards on a 12-col grid.
+   ===================================================================== */
+:root{
+  /* Palette (BBL identity) */
+  --navy:#101B30;          /* main background */
+  --slate:#1C2B44;         /* cards and containers */
+  --slate-2:#233654;       /* raised / hover */
+  --slate-3:#2B4063;       /* inputs */
+  --cream:#F5F1E8;         /* primary text */
+  --yellow:#F5CD65;
+  --orange:#F29B70;
+  --mint:#6DD6B0;
+  --lavender:#AFA0F5;
+  --sky:#79B9F2;
+  --coral:#F18D9E;
+  --teal:#55B8BD;
+
+  /* Derived neutrals */
+  --text:var(--cream);
+  --text-2:rgba(245,241,232,.74);
+  --text-3:rgba(245,241,232,.54);
+  --line:rgba(245,241,232,.09);
+  --line-2:rgba(245,241,232,.18);
+  --grid:rgba(245,241,232,.08);
+  --muted-series:#5D6E8C;  /* context lines / other towers */
+
+  /* Department colours (decorative only, never status) */
+  --dept-ceo:var(--yellow);
+  --dept-procurement:var(--lavender);
+  --dept-production:var(--orange);
+  --dept-warehouse:var(--sky);
+  --dept-transport:var(--mint);
+  --dept-sales:var(--coral);
+  --dept-cfo:var(--teal);
+
+  /* Tower focus colours */
+  --tower-c:var(--orange);
+  --tower-d:var(--yellow);
+  --tower-other:var(--muted-series);
+
+  /* Customer colours */
+  --cust-vl:var(--sky);
+  --cust-heijmans:var(--lavender);
+  --cust-vh:var(--coral);
+  --cust-freesmij:var(--mint);
+  --cust-stork:var(--teal);
+
+  /* Status (performance) — separate from the decorative palette, always with icon + word */
+  --status-good:#58C26E;
+  --status-warn:#F0A33A;
+  --status-bad:#EC5B62;
+  --status-none:#7C879C;
+
+  /* Type */
+  --font:"Aptos","Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+  --font-display:"Aptos Display","Aptos","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+  --fs-xs:12px; --fs-sm:13px; --fs-md:14.5px; --fs-lg:18px; --fs-xl:24px; --fs-2xl:34px;
+
+  /* Shape and space */
+  --r-lg:18px; --r-md:12px; --r-sm:8px; --r-pill:999px;
+  --gap:20px; --pad:22px;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--navy);color:var(--text)}
+body{font-family:var(--font);font-size:var(--fs-md);line-height:1.5;-webkit-font-smoothing:antialiased;min-height:100vh}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--sky);outline-offset:2px;border-radius:6px}
+.num{font-variant-numeric:tabular-nums}
+
+/* ---------- Top bar ---------- */
+.topbar{position:sticky;top:0;z-index:20;background:rgba(16,27,48,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.topbar-in{max-width:1280px;margin:0 auto;padding:12px max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:10px}
+.brand-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand-mark{flex:none}
+.brand-name{font-family:var(--font-display);font-weight:700;font-size:17px;letter-spacing:.01em;line-height:1.1}
+.brand-sub{font-size:var(--fs-xs);color:var(--text-3);letter-spacing:.06em;text-transform:uppercase}
+.scenario-chip{margin-left:auto;display:inline-flex;align-items:center;gap:8px;background:var(--slate);border:1px solid var(--line-2);border-radius:var(--r-pill);padding:6px 12px 6px 10px;font-size:var(--fs-sm);color:var(--text-2);cursor:pointer;text-decoration:none}
+.scenario-chip:hover{border-color:var(--yellow);color:var(--text)}
+.scenario-chip b{color:var(--text);font-weight:600}
+.scenario-dot{width:8px;height:8px;border-radius:50%;background:var(--yellow)}
+.tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;margin:0 -4px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{appearance:none;background:none;border:0;padding:10px 14px 12px;color:var(--text-3);font-weight:600;font-size:var(--fs-md);cursor:pointer;white-space:nowrap;border-bottom:3px solid transparent;display:inline-flex;align-items:center;gap:8px}
+.tab:hover{color:var(--text)}
+.tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--yellow)}
+.tab .tab-ico{width:9px;height:9px;border-radius:3px;background:currentColor;opacity:.8}
+.tab[data-view="market"] .tab-ico{background:var(--sky)}
+.tab[data-view="forecast"] .tab-ico{background:var(--orange)}
+.tab[data-view="performance"] .tab-ico{background:var(--mint)}
+.tab[data-view="planning"] .tab-ico{background:var(--lavender)}
+.tab .soon{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--navy);background:var(--lavender);border-radius:4px;padding:1px 5px}
+
+/* ---------- Page ---------- */
+main{max-width:1280px;margin:0 auto;padding-block:26px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.view{display:flex;flex-direction:column;gap:var(--gap)}
+.view-head{display:flex;flex-direction:column;gap:6px;margin-bottom:4px}
+.eyebrow{font-size:var(--fs-xs);letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--yellow)}
+h1{margin:0;font-family:var(--font-display);font-size:var(--fs-2xl);line-height:1.1;font-weight:700;text-wrap:balance}
+h1 .hl{color:var(--yellow)}
+.lede{margin:0;color:var(--text-2);max-width:72ch;font-size:15.5px}
+.lede b{color:var(--text);font-variant-numeric:tabular-nums}
+h2{margin:0;font-family:var(--font-display);font-size:var(--fs-lg);font-weight:700;line-height:1.25}
+h3{margin:0;font-size:var(--fs-md);font-weight:600}
+.sub{margin:0;color:var(--text-3);font-size:var(--fs-sm)}
+
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:var(--gap)}
+.span-12{grid-column:span 12}.span-8{grid-column:span 8}.span-7{grid-column:span 7}.span-6{grid-column:span 6}.span-5{grid-column:span 5}.span-4{grid-column:span 4}
+@media (max-width:1000px){.span-8,.span-7,.span-5,.span-4{grid-column:span 12}}
+@media (max-width:820px){.span-6{grid-column:span 12}}
+
+/* ---------- Card ---------- */
+.card{background:var(--slate);border:1px solid var(--line);border-radius:var(--r-lg);padding:var(--pad);display:flex;flex-direction:column;gap:14px;min-width:0}
+.card-head{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.card-head .titles{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 220px}
+.card-tag{display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-xs);font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3)}
+.card-tag i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:var(--fs-xs);color:var(--text-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{display:inline-block;width:10px;height:10px;border-radius:3px;flex:none}
+.sw-line{display:inline-block;width:18px;height:0;border-top:3px solid;border-radius:2px}
+.sw-dot{display:inline-block;width:9px;height:9px;border-radius:50%}
+.sw-tick{display:inline-block;width:2px;height:12px;background:var(--cream)}
+.src{margin:0;font-size:var(--fs-xs);color:var(--text-3);display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}
+.src .lbl{color:var(--text-3)}
+[data-src]{display:inline-flex;flex-wrap:wrap;gap:4px 12px}
+.badge{display:inline-block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;font-weight:800;color:var(--navy);border-radius:4px;padding:1px 6px;margin-right:4px;vertical-align:1px}
+.badge.calc{background:var(--mint)}
+.badge.live{background:var(--sky)}
+.badge.assume{background:var(--lavender)}
+
+/* ---------- Charts ---------- */
+.chart{position:relative;width:100%;min-height:220px}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart .ax{fill:var(--text-3);font-size:11.5px;font-variant-numeric:tabular-nums}
+.chart .gl{stroke:var(--grid);stroke-width:1}
+.chart .base{stroke:var(--line-2);stroke-width:1}
+.chart .lab{fill:var(--text-2);font-size:12px}
+.chart .lab.hi{fill:var(--text);font-weight:700}
+.chart .val{fill:var(--text);font-size:12px;font-variant-numeric:tabular-nums}
+.chart .val.bad{fill:var(--status-bad)}
+.chart .cross{stroke:rgba(245,241,232,.4);stroke-width:1}
+.chart .tgt{stroke:var(--cream);stroke-width:1.5;stroke-dasharray:5 4;opacity:.7}
+.chart .tgt-lab{fill:var(--text-2);font-size:11px}
+.chart-empty{display:flex;align-items:center;justify-content:center;min-height:160px;border:1px dashed var(--line-2);border-radius:var(--r-md);color:var(--text-3);font-size:var(--fs-sm);text-align:center;padding:16px}
+.tip{position:absolute;z-index:6;pointer-events:none;background:var(--cream);color:#16233B;border-radius:10px;padding:9px 11px;font-size:12px;box-shadow:0 10px 28px rgba(0,0,0,.4);min-width:150px;display:flex;flex-direction:column;gap:3px}
+.tip-h{font-weight:800;margin-bottom:2px}
+.tip-r{display:flex;align-items:center;gap:7px}
+.tip-r b{margin-left:auto;padding-left:14px;font-variant-numeric:tabular-nums}
+.tip .sw{width:8px;height:8px}
+
+/* ---------- Tiles ---------- */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.tile{background:var(--slate);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 18px;display:flex;flex-direction:column;gap:4px;position:relative;overflow:hidden}
+.tile::before{content:"";position:absolute;left:0;top:16px;bottom:16px;width:3px;border-radius:0 3px 3px 0;background:var(--accent,var(--line-2))}
+.tile .t-lbl{font-size:var(--fs-sm);color:var(--text-2)}
+.tile .t-val{font-family:var(--font-display);font-size:30px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.tile .t-unit{font-size:var(--fs-xs);color:var(--text-3)}
+
+/* ---------- Tables ---------- */
+.tablewrap{overflow-x:auto;min-width:0;margin:0 -4px;padding:0 4px}
+table{border-collapse:collapse;width:100%;font-size:var(--fs-sm);font-variant-numeric:tabular-nums}
+th{text-align:right;font-weight:600;color:var(--text-3);font-size:var(--fs-xs);padding:8px 10px;border-bottom:1px solid var(--line-2);white-space:nowrap;letter-spacing:.02em}
+td{text-align:right;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+tbody tr:hover td{background:rgba(245,241,232,.03)}
+tr.focus td:first-child{font-weight:700}
+tr.focus td:first-child .tw{color:var(--text)}
+td.bad{color:var(--status-bad);font-weight:600}
+.tw{display:inline-flex;align-items:center;gap:8px}
+.pill{display:inline-block;border-radius:var(--r-pill);padding:2px 10px;font-size:var(--fs-xs);font-weight:700;color:var(--navy)}
+.pill.local{background:var(--mint)}.pill.national{background:var(--sky)}.pill.international{background:var(--lavender)}
+.minibar{display:inline-block;height:8px;border-radius:4px;background:var(--sky);vertical-align:middle;margin-right:6px;opacity:.85}
+#customer-table td,#customer-table th{padding-left:6px;padding-right:6px}
+
+/* ---------- Form controls ---------- */
+.controls{display:flex;flex-wrap:wrap;gap:18px 28px;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field>label,.fieldset-title{font-size:var(--fs-xs);color:var(--text-2);font-weight:600;letter-spacing:.03em}
+input[type=number],select.sel{background:var(--slate-3);border:1px solid var(--line-2);border-radius:var(--r-sm);padding:8px 10px;width:96px;font-variant-numeric:tabular-nums}
+select.sel{width:auto;padding-right:28px}
+input[type=number]:hover,select.sel:hover{border-color:rgba(245,241,232,.32)}
+input.out,input.err{border-color:var(--status-bad);box-shadow:0 0 0 1px var(--status-bad)}
+.suffix{display:inline-flex;align-items:center;gap:6px;color:var(--text-3)}
+.switch{display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-size:var(--fs-md)}
+.switch input{position:absolute;opacity:0;width:1px;height:1px}
+.track{width:42px;height:24px;border-radius:12px;background:var(--muted-series);position:relative;flex:none;transition:background .15s}
+.track::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--cream);transition:transform .15s}
+.switch input:checked + .track{background:var(--mint)}
+.switch input:checked + .track::after{transform:translateX(18px)}
+.switch input:focus-visible + .track{outline:2px solid var(--sky);outline-offset:2px}
+.hint{font-size:var(--fs-xs);color:var(--text-3)}
+.prices{display:flex;flex-wrap:wrap;gap:8px}
+.pf{display:flex;align-items:center;gap:6px;background:var(--slate-2);border-radius:var(--r-sm);padding:4px 4px 4px 10px}
+.pf label{font-size:var(--fs-sm);font-weight:700;color:var(--text-2);width:12px}
+.pf.focus label{color:var(--orange)}
+.pf input[type=number]{width:72px}
+.btn{appearance:none;background:var(--slate-2);border:1px solid var(--line-2);border-radius:var(--r-sm);padding:8px 14px;cursor:pointer;font-weight:600;font-size:var(--fs-sm);display:inline-flex;align-items:center;gap:8px}
+.btn:hover{border-color:var(--yellow)}
+.btn.primary{background:var(--yellow);color:var(--navy);border-color:var(--yellow)}
+.btn.danger{border-color:rgba(236,91,98,.5);color:#FFB3B6}
+.btn.small{padding:5px 10px;font-size:var(--fs-xs)}
+.warn-text{margin:0;color:var(--status-bad);font-size:var(--fs-sm);width:100%}
+.note{margin:0;font-size:var(--fs-sm);color:var(--text-2);background:var(--slate-2);border-radius:var(--r-md);padding:10px 14px;border-left:3px solid var(--lavender)}
+
+/* ---------- Status ---------- */
+.status{display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-xs);font-weight:800;letter-spacing:.04em;text-transform:uppercase;border-radius:var(--r-pill);padding:3px 10px 3px 7px;white-space:nowrap}
+.status .ico{width:16px;height:16px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;line-height:1;color:var(--navy);font-weight:900}
+.status.good{background:rgba(88,194,110,.16);color:#8BE09C}.status.good .ico{background:var(--status-good)}
+.status.warn{background:rgba(240,163,58,.16);color:#F7C27A}.status.warn .ico{background:var(--status-warn)}
+.status.bad{background:rgba(236,91,98,.16);color:#FF9CA1}.status.bad .ico{background:var(--status-bad)}
+.status.none{background:rgba(124,135,156,.18);color:var(--text-2)}.status.none .ico{background:var(--status-none)}
+.status.err{background:rgba(236,91,98,.16);color:#FF9CA1}.status.err .ico{background:var(--status-bad)}
+
+/* ---------- KPI cards ---------- */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:16px;align-items:start}
+.kpi{background:var(--slate);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px 18px 14px;display:flex;flex-direction:column;gap:10px;position:relative;min-width:0}
+.kpi::before{content:"";position:absolute;inset:0 0 auto 0;height:4px;border-radius:var(--r-lg) var(--r-lg) 0 0;background:var(--dept,var(--line-2))}
+.kpi-top{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.dept{display:inline-flex;align-items:center;gap:7px;font-size:var(--fs-xs);font-weight:700;color:var(--text-2);letter-spacing:.04em;text-transform:uppercase;min-width:0}
+.dept i{width:9px;height:9px;border-radius:3px;background:var(--dept);flex:none}
+.kpi-name{font-weight:700;font-size:15.5px;line-height:1.3}
+.kpi-owner{font-size:var(--fs-xs);color:var(--text-3)}
+.kpi-main{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.kpi-val{font-family:var(--font-display);font-size:34px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.kpi-val.nm{font-size:20px;color:var(--text-3);font-weight:600}
+.kpi-when{font-size:var(--fs-xs);color:var(--text-3)}
+.tfa{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.tfa div{background:var(--slate-2);border-radius:var(--r-sm);padding:7px 9px;display:flex;flex-direction:column;gap:1px;min-width:0}
+.tfa span{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);font-weight:700}
+.tfa b{font-size:var(--fs-sm);font-variant-numeric:tabular-nums;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tfa .a b{color:var(--text)}
+.tfa .t b,.tfa .f b{color:var(--text-2)}
+.spark{min-height:56px}
+.spark .chart{min-height:56px}
+details.more{border-top:1px solid var(--line);padding-top:8px}
+details.more summary{cursor:pointer;font-size:var(--fs-sm);font-weight:600;color:var(--text-2);list-style:none;display:flex;align-items:center;gap:6px}
+details.more summary::-webkit-details-marker{display:none}
+details.more summary::before{content:"▸";transition:transform .15s;display:inline-block}
+details.more[open] summary::before{transform:rotate(90deg)}
+dl.facts{margin:10px 0 4px;display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:var(--fs-sm)}
+dl.facts dt{color:var(--text-3);font-weight:600}
+dl.facts dd{margin:0;color:var(--text-2)}
+.tset{display:flex;flex-wrap:wrap;gap:12px;margin-top:8px}
+.tset .field input{width:86px}
+
+/* ---------- Attention ---------- */
+.attn{display:flex;flex-direction:column;gap:10px}
+.attn-item{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;background:var(--slate-2);border-radius:var(--r-md);padding:10px 14px;border-left:4px solid var(--status-none)}
+.attn-item.bad{border-left-color:var(--status-bad)}.attn-item.warn{border-left-color:var(--status-warn)}.attn-item.err{border-left-color:var(--status-bad)}
+.attn-item .what{display:flex;flex-direction:column;gap:2px;min-width:0}
+.attn-item .what b{font-size:var(--fs-md)}
+.attn-item .what span{font-size:var(--fs-sm);color:var(--text-2)}
+.attn-empty{display:flex;align-items:center;gap:10px;color:var(--text-2);font-size:var(--fs-sm)}
+@media (max-width:560px){.attn-item{grid-template-columns:1fr}}
+
+/* ---------- Weekly entry ---------- */
+.week-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.week-bar .wk{font-family:var(--font-display);font-weight:700;font-size:var(--fs-xl);min-width:110px;text-align:center}
+.entry-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:14px}
+.entry{background:var(--slate-2);border-radius:var(--r-md);padding:14px;display:flex;flex-direction:column;gap:10px;border-top:3px solid var(--dept)}
+.entry .fieldset-title{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.entry .row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.entry .row label{font-size:var(--fs-sm);color:var(--text-2)}
+.entry .row input{width:90px}
+.entry .res{font-size:var(--fs-sm);color:var(--text-2);display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding-top:8px}
+.entry .res b{color:var(--text);font-variant-numeric:tabular-nums}
+.entry .msg{font-size:var(--fs-xs);color:#FF9CA1}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.toolbar .spacer{flex:1}
+.saved{font-size:var(--fs-xs);color:var(--text-3)}
+.cellstat{display:inline-flex;align-items:center;gap:6px}
+.cellstat i{width:8px;height:8px;border-radius:50%;background:var(--status-none)}
+.cellstat.good i{background:var(--status-good)}.cellstat.warn i{background:var(--status-warn)}.cellstat.bad i{background:var(--status-bad)}.cellstat.err i{background:var(--status-bad)}
+
+/* ---------- Planning ---------- */
+.ds-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:16px}
+.ds{background:var(--slate);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px;display:flex;flex-direction:column;gap:10px}
+.ds code{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--yellow)}
+.ds ul{margin:0;padding-left:18px;font-size:var(--fs-sm);color:var(--text-2);display:flex;flex-direction:column;gap:3px}
+.ds .state{font-size:var(--fs-xs);font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
+.validate-out{font-size:var(--fs-sm);white-space:pre-wrap;background:var(--slate-2);border-radius:var(--r-md);padding:12px 14px;color:var(--text-2);margin:0}
+.validate-out.ok{border-left:3px solid var(--status-good)}.validate-out.bad{border-left:3px solid var(--status-bad)}
+
+footer{max-width:1280px;margin:0 auto;padding:0 max(16px,env(safe-area-inset-left,0px)) 40px;color:var(--text-3);font-size:var(--fs-xs)}
+@media (max-width:640px){
+  :root{--pad:16px;--gap:14px;--fs-2xl:27px}
+  .scenario-chip{margin-left:0}
+  .tfa{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand-row">
+      <div class="brand">
+        <svg class="brand-mark" width="38" height="34" viewBox="0 0 38 34" aria-hidden="true">
+          <rect x="1" y="19" width="16" height="13" rx="3" fill="#F29B70"/><rect x="20" y="19" width="16" height="13" rx="3" fill="#79B9F2"/>
+          <rect x="10" y="3" width="16" height="13" rx="3" fill="#F5CD65"/>
+          <circle cx="15" cy="3" r="2" fill="#F5CD65"/><circle cx="21" cy="3" r="2" fill="#F5CD65"/>
+        </svg>
+        <div><div class="brand-name">Brick by Brick Logistics</div><div class="brand-sub">Factory 11 · Dragons' Den 2</div></div>
+      </div>
+      <a class="scenario-chip" href="#forecast" id="scenario-chip" title="Edit the scenario inputs"><i class="scenario-dot"></i><span id="scenario-text">Scenario</span></a>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Dashboard sections">
+      <button class="tab" role="tab" data-view="market" id="tab-market" aria-controls="market"><i class="tab-ico"></i>Market Overview</button>
+      <button class="tab" role="tab" data-view="forecast" id="tab-forecast" aria-controls="forecast"><i class="tab-ico"></i>Sales Forecast</button>
+      <button class="tab" role="tab" data-view="performance" id="tab-performance" aria-controls="performance"><i class="tab-ico"></i>Factory Performance</button>
+      <button class="tab" role="tab" data-view="planning" id="tab-planning" aria-controls="planning"><i class="tab-ico"></i>Planning <span class="soon">Next</span></button>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+<!-- ===================== MARKET OVERVIEW ===================== -->
+<section class="view" id="market" role="tabpanel" aria-labelledby="tab-market" hidden>
+  <div class="view-head">
+    <div class="eyebrow">Market Overview</div>
+    <h1>The towers others overlook: <span class="hl">C and D</span></h1>
+    <p class="lede" id="market-lede">—</p>
+  </div>
+  <div class="grid">
+    <article class="card span-12" id="card-market">
+      <div class="card-head"><div class="titles"><span class="card-tag"><i style="background:var(--sky)"></i>Market</span><h2>Sales volume per tower type</h2><p class="sub">Towers per game round, 2011–2025, market data based on 9 factories</p></div></div>
+      <div class="legend"><span><i class="sw-line" style="border-color:var(--tower-c)"></i>Tower C</span><span><i class="sw-line" style="border-color:var(--tower-d)"></i>Tower D</span><span><i class="sw-line" style="border-color:var(--tower-other)"></i>Other towers</span><span><i class="sw-line" style="border-color:var(--cream);border-top-style:dotted"></i>2026 forecast (switch off)</span></div>
+      <div class="chart" data-chart="market" style="min-height:320px"></div>
+      <p class="src"><span class="lbl">Source:</span><span data-src="sales_volume"></span></p>
+    </article>
+
+    <article class="card span-7" id="card-prices">
+      <div class="card-head"><div class="titles"><span class="card-tag"><i style="background:var(--orange)"></i>Prices</span><h2>Standard price, 2015–2025</h2><p class="sub">Pleuro per tower</p></div></div>
+      <div class="legend"><span><i class="sw-line" style="border-color:var(--tower-c)"></i>Tower C</span><span><i class="sw-line" style="border-color:var(--tower-d)"></i>Tower D</span><span><i class="sw-line" style="border-color:var(--tower-other)"></i>Other towers</span></div>
+      <div class="chart" data-chart="prices" style="min-height:280px"></div>
+      <p class="src"><span class="lbl">Source:</span><span data-src="price"></span></p>
+    </article>
+    <article class="card span-5" id="card-range">
+      <div class="card-head"><div class="titles"><span class="card-tag"><i style="background:var(--orange)"></i>Prices</span><h2>2025 allowed price range</h2><p class="sub">Prices must stay within min–max</p></div></div>
+      <div class="legend"><span><i class="sw" style="background:rgba(245,241,232,.22)"></i>Min–max</span><span><i class="sw-tick"></i>2025 standard</span><span><i class="sw-dot" style="background:var(--sky)"></i>Our price</span><span><i class="sw-dot" style="background:var(--status-bad)"></i>Outside range</span></div>
+      <div class="chart" data-chart="range" style="min-height:280px"></div>
+      <p class="src"><span class="lbl">Source:</span><span data-src="price_limit"></span></p>
+    </article>
+
+    <article class="card span-7" id="card-customers">
+      <div class="card-head"><div class="titles"><span class="card-tag"><i style="background:var(--coral)"></i>Customers</span><h2>Market share per customer</h2><p class="sub">Share of towers ordered, 2011–2025</p></div></div>
+      <div class="chart" data-chart="customers" style="min-height:280px"></div>
+      <p class="src"><span class="lbl">Source:</span><span data-src="customer_share"></span></p>
+    </article>
+    <article class="card span-5" id="card-locations">
+      <div class="card-head"><div class="titles"><span class="card-tag"><i style="background:var(--coral)"></i>Customers</span><h2>Who they are and where</h2><p class="sub">2025 share and delivery distance band</p></div></div>
+      <div class="tablewrap"><table id="customer-table"><thead><tr><th>Customer</th><th>Location</th><th>2025 share</th></tr></thead><tbody></tbody></table></div>
+      <p class="hint">Local ≤ 50 km · national 50–200 km · international ≤ 2,000 km. Farther = more cost and CO₂.</p>
+      <p class="src"><span class="lbl">Source:</span><span data-src="customer_profile customer_share"></span></p>
+    </article>
+  </div>
+</section>
+
+<!-- ===================== SALES FORECAST ===================== -->
+<section class="view" id="forecast" role="tabpanel" aria-labelledby="tab-forecast" hidden>
+  <div class="view-head">
+    <div class="eyebrow">Sales Forecast</div>
+    <h1>Game-day demand and <span class="hl">our C+D target</span></h1>
+    <p class="lede">With <b data-sum="factories">—</b> factories, the game-day market for C and D is <b data-sum="cdDemand">—</b> towers. Our <b data-sum="sharePct">—</b>% target is <b data-sum="ourCD">—</b> towers.</p>
+  </div>
+
+  <article class="card" id="inputs">
+    <div class="card-head"><div class="titles"><span class="card-tag"><i style="background:var(--yellow)"></i>Scenario</span><h2>What-if inputs</h2><p class="sub">Every chart and figure updates as you type</p></div></div>
+    <div class="controls">
+      <div class="field"><label for="in-factories">Factories</label><input id="in-factories" type="number" min="1" max="30" step="1" inputmode="numeric"><span class="hint">Game has 7 (factories 8–14)</span></div>
+      <div class="field"><label for="in-share">Our share of C+D</label><span class="suffix"><input id="in-share" type="number" min="0" max="100" step="1" inputmode="decimal">%</span><span class="hint">Planning target</span></div>
+      <div class="field"><label class="switch" for="in-latest"><input id="in-latest" type="checkbox" role="switch"><span class="track"></span><span>2025 = game-day forecast</span></label><span class="hint">Off: 2026 from 2020–25 avg growth</span></div>
+      <div class="field"><span class="fieldset-title" id="prices-lbl">Our price per tower (pleuro)</span>
+        <div class="prices" role="group" aria-labelledby="prices-lbl">
+          <div class="pf"><label for="in-price-A">A</label><input id="in-price-A" data-tower="A" type="number" min="0" step="1"></div>
+          <div class="pf"><label for="in-price-B">B</label><input id="in-price-B" data-tower="B" type="number" min="0" step="1"></div>
+          <div class="pf focus"><label for="in-price-C">C</label><input id="in-price-C" data-tower="C" type="number" min="0" step="1"></div>
+          <div class="pf focus"><label for="in-price-D">D</label><input id="in-price-D" data-tower="D" type="number" min="0" step="1"></div>
+          <div class="pf"><label for="in-price-E">E</label><input id="in-price-E" data-tower="E" type="number" min="0" step="1"></div>
+          <div class="pf"><label for="in-price-F">F</label><input id="in-price-F" data-tower="F" type="number" min="0" step="1"></div>
+        </div>
+      </div>
+      <button id="in-reset" type="button" class="btn">Reset scenario</button>
+      <p id="price-warn" class="warn-text" hidden>A price is outside the 2025 min–max range (red). The game requires prices within it.</p>
+    </div>
+  </article>
+
+  <div class="tiles" id="tiles">
+    <div class="tile" style="--accent:var(--sky)"><span class="t-lbl">C+D market, game day</span><span class="t-val" data-sum="cdDemand">—</span><span class="t-unit">towers, all factories</span></div>
+    <div class="tile" style="--accent:var(--orange)"><span class="t-lbl">Our C+D target</span><span class="t-val" data-sum="ourCD" style="color:var(--orange)">—</span><span class="t-unit">towers</span></div>
+    <div class="tile" style="--accent:var(--mint)"><span class="t-lbl">C+D revenue at our price</span><span class="t-val" data-sum="revenue">—</span><span class="t-unit">pleuro</span></div>
+    <div class="tile" style="--accent:var(--teal)"><span class="t-lbl">C+D margin after materials</span><span class="t-val" data-sum="materialMargin">—</span><span class="t-unit">pleuro</span></div>
+  </div>
+
+  <div class="grid">
+    <article class="card span-6" id="card-fc-chart">
+      <div class="card-head"><div class="titles"><span class="card-tag"><i style="background:var(--orange)"></i>Forecast</span><h2>Demand per tower</h2><p class="sub">Towers on game day, scaled to your factories</p></div></div>
+      <div class="legend"><span><i class="sw" style="background:var(--orange)"></i>Our target</span><span><i class="sw" style="background:var(--orange);opacity:.35"></i>Rest of C/D market</span><span><i class="sw" style="background:var(--muted-series)"></i>Other towers</span></div>
+      <div class="chart" data-chart="forecast"></div>
+    </article>
+    <article class="card span-6" id="card-fc-table">
+      <div class="card-head"><div class="titles"><span class="card-tag"><i style="background:var(--orange)"></i>Forecast</span><h2>Forecast table</h2><p class="sub">Every step per tower</p></div></div>
+      <div class="tablewrap"><table id="forecast-table"><thead><tr><th>Tower</th><th>2025 vol.</th><th>Growth/yr 20–25</th><th>Base</th><th>Demand</th><th>Our target</th><th>Our price</th><th>Revenue</th></tr></thead><tbody></tbody></table></div>
+    </article>
+    <p class="src span-12"><span class="badge live">Live calc</span>Demand = base × your factories ÷ 9-factory data. Base = 2025, or 2025 × (1 + avg growth 2020–25) when the switch is off. <span class="lbl">Source:</span><span data-src="sales_volume market_info"></span></p>
+
+    <article class="card span-6" id="card-econ-chart">
+      <div class="card-head"><div class="titles"><span class="card-tag"><i style="background:var(--teal)"></i>Tower economics</span><h2>Our price split</h2><p class="sub">Material cost + margin = our price (pleuro)</p></div></div>
+      <div class="legend"><span><i class="sw" style="background:var(--mint)"></i>Material cost</span><span><i class="sw" style="background:var(--sky)"></i>Margin</span></div>
+      <div class="chart" data-chart="econ"></div>
+    </article>
+    <article class="card span-6" id="card-econ-table">
+      <div class="card-head"><div class="titles"><span class="card-tag"><i style="background:var(--teal)"></i>Tower economics</span><h2>Per tower</h2><p class="sub">Material cost at Hay-Lin advised prices</p></div></div>
+      <div class="tablewrap"><table id="econ-table"><thead><tr><th>Tower</th><th><span class="badge calc">Calc</span>Material</th><th>2025 price</th><th>Our price</th><th>Margin</th><th>Margin %</th><th><span class="badge calc">Calc</span>2025 margin</th></tr></thead><tbody></tbody></table></div>
+    </article>
+    <p class="src span-12"><span class="badge live">Live calc</span>Margin = our price − material cost. <span class="lbl">Source:</span><span data-src="material_cost margin price"></span></p>
+  </div>
+</section>
+
+<!-- ===================== FACTORY PERFORMANCE ===================== -->
+<section class="view" id="performance" role="tabpanel" aria-labelledby="tab-performance" hidden>
+  <div class="view-head">
+    <div class="eyebrow">Factory Performance</div>
+    <h1>Seven KPIs, <span class="hl">one reliable result</span></h1>
+    <p class="lede" id="perf-lede">—</p>
+  </div>
+
+  <article class="card" id="attention">
+    <div class="card-head"><div class="titles"><span class="card-tag"><i style="background:var(--status-bad)"></i>Needs attention now</span><h2>KPIs off target at their latest review</h2></div></div>
+    <div class="attn" id="attn-list"></div>
+  </article>
+
+  <div class="kpi-grid" id="kpi-grid"></div>
+
+  <div class="grid">
+    <article class="card span-12" id="sustainability">
+      <div class="card-head"><div class="titles"><span class="card-tag"><i style="background:var(--dept-transport)"></i>Sustainability · supporting metric</span><h2>Transport trips per 100 towers delivered</h2><p class="sub">Does consolidating trips cut CO₂ without hurting OTIF?</p></div></div>
+      <p class="note" id="consol-verdict">—</p>
+      <div class="grid">
+        <div class="span-6" style="display:flex;flex-direction:column;gap:8px;min-width:0"><h3>Trips per 100 towers (lower is better)</h3><div class="chart" data-chart="trips" style="min-height:200px"></div></div>
+        <div class="span-6" style="display:flex;flex-direction:column;gap:8px;min-width:0"><h3>OTIF per review</h3><div class="chart" data-chart="otifweek" style="min-height:200px"></div></div>
+      </div>
+      <p class="src"><span class="badge live">Live calc</span>Trips per 100 towers = distribution trips ÷ towers delivered × 100, from the review entries below.</p>
+    </article>
+  </div>
+
+  <article class="card" id="entry">
+    <div class="card-head">
+      <div class="titles"><span class="card-tag"><i style="background:var(--yellow)"></i>Record actuals</span><h2>Performance data per 20-minute review</h2><p class="sub">One review every 5 game weeks (20 real minutes), 6 per session. Type the totals of those 5 weeks. Leave a field empty when it was not measured.</p></div>
+    </div>
+    <div class="toolbar">
+      <div class="week-bar">
+        <button class="btn small" id="wk-prev" type="button" aria-label="Previous review">◀</button>
+        <span class="wk" id="wk-label">Review 1</span>
+        <button class="btn small" id="wk-next" type="button" aria-label="Next review">▶</button>
+        <span class="hint" id="wk-range"></span>
+        <select class="sel" id="wk-select" aria-label="Choose review"></select>
+      </div>
+      <span class="spacer"></span>
+      <span class="saved" id="save-state">—</span>
+    </div>
+    <div class="entry-grid" id="entry-grid"></div>
+  </article>
+
+  <article class="card" id="history">
+    <div class="card-head"><div class="titles"><span class="card-tag"><i style="background:var(--sky)"></i>History</span><h2>Recorded reviews</h2><p class="sub">KPI results per 20-minute review from the entries above</p></div></div>
+    <div class="tablewrap"><table id="history-table"><thead></thead><tbody></tbody></table></div>
+    <div class="toolbar">
+      <button class="btn" id="btn-export" type="button">Export data (JSON)</button>
+      <label class="btn" for="file-import" style="cursor:pointer">Import data (JSON)</label><input id="file-import" type="file" accept="application/json,.json" hidden>
+      <span class="spacer"></span>
+      <button class="btn danger" id="btn-clear" type="button">Clear all KPI data</button>
+      <button class="btn danger" id="btn-clear-confirm" type="button" hidden>Yes, delete all review data and targets</button>
+      <button class="btn" id="btn-clear-cancel" type="button" hidden>Cancel</button>
+    </div>
+    <p class="hint" id="io-msg">Data is saved in this browser only. Export it to move it to another computer.</p>
+  </article>
+</section>
+
+<!-- ===================== PLANNING (future integration) ===================== -->
+<section class="view" id="planning" role="tabpanel" aria-labelledby="tab-planning" hidden>
+  <div class="view-head">
+    <div class="eyebrow">Planning · prepared, not connected</div>
+    <h1>Ready for <span class="hl">validated</span> data imports</h1>
+    <p class="lede">These datasets will feed the dashboard later. Nothing here is connected yet. A file is only used once it passes the column and value checks below.</p>
+  </div>
+  <article class="card" id="validator">
+    <div class="card-head"><div class="titles"><span class="card-tag"><i style="background:var(--lavender)"></i>Import check</span><h2>Test a CSV file against a dataset</h2><p class="sub">Checks columns and values only. Nothing is imported.</p></div></div>
+    <div class="controls">
+      <div class="field"><label for="val-ds">Dataset</label><select class="sel" id="val-ds"></select></div>
+      <div class="field"><label for="val-file">CSV file (comma-separated, header row)</label><input id="val-file" type="file" accept=".csv,text/csv"></div>
+    </div>
+    <pre class="validate-out" id="val-out">Choose a dataset and a CSV file.</pre>
+  </article>
+  <div class="ds-grid" id="ds-grid"></div>
+  <p class="note">The capacity workbook (BBL_capacity_plan.xlsx) was inspected but not connected. Its forecasts use our own assumptions (lead times, trips per week, supplier choice) that still need checking on the test day.</p>
+</section>
+
+</main>
+<footer>Brick by Brick Logistics · Factory 11 · Data: team CSV (Blokko site) · Offline file, no internet needed</footer>
+
+<script type="text/plain" id="csv-blokko">
+category,dataset,item,attribute,year,value,unit,source,note
+market,sales_volume,Tower A,towers per game round,2011,289,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower A,towers per game round,2012,314,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower A,towers per game round,2013,365,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower A,towers per game round,2014,445,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower A,towers per game round,2015,409,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower A,towers per game round,2016,439,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower A,towers per game round,2017,392,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower A,towers per game round,2018,451,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower A,towers per game round,2019,480,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower A,towers per game round,2020,448,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower A,towers per game round,2021,472,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower A,towers per game round,2022,536,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower A,towers per game round,2023,589,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower A,towers per game round,2024,561,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower A,towers per game round,2025,603,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower B,towers per game round,2011,347,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower B,towers per game round,2012,377,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower B,towers per game round,2013,439,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower B,towers per game round,2014,535,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower B,towers per game round,2015,491,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower B,towers per game round,2016,528,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower B,towers per game round,2017,472,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower B,towers per game round,2018,542,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower B,towers per game round,2019,577,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower B,towers per game round,2020,539,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower B,towers per game round,2021,567,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower B,towers per game round,2022,645,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower B,towers per game round,2023,708,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower B,towers per game round,2024,675,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower B,towers per game round,2025,725,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower C,towers per game round,2011,109,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower C,towers per game round,2012,119,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower C,towers per game round,2013,138,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower C,towers per game round,2014,169,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower C,towers per game round,2015,155,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower C,towers per game round,2016,166,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower C,towers per game round,2017,149,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower C,towers per game round,2018,171,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower C,towers per game round,2019,182,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower C,towers per game round,2020,170,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower C,towers per game round,2021,179,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower C,towers per game round,2022,203,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower C,towers per game round,2023,223,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower C,towers per game round,2024,213,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower C,towers per game round,2025,229,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower D,towers per game round,2011,85,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower D,towers per game round,2012,93,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower D,towers per game round,2013,108,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower D,towers per game round,2014,132,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower D,towers per game round,2015,121,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower D,towers per game round,2016,130,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower D,towers per game round,2017,116,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower D,towers per game round,2018,133,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower D,towers per game round,2019,142,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower D,towers per game round,2020,132,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower D,towers per game round,2021,139,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower D,towers per game round,2022,158,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower D,towers per game round,2023,174,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower D,towers per game round,2024,166,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower D,towers per game round,2025,178,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower E,towers per game round,2011,239,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower E,towers per game round,2012,260,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower E,towers per game round,2013,302,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower E,towers per game round,2014,369,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower E,towers per game round,2015,338,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower E,towers per game round,2016,364,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower E,towers per game round,2017,325,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower E,towers per game round,2018,374,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower E,towers per game round,2019,397,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower E,towers per game round,2020,371,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower E,towers per game round,2021,391,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower E,towers per game round,2022,444,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower E,towers per game round,2023,488,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower E,towers per game round,2024,465,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower E,towers per game round,2025,500,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower F,towers per game round,2011,132,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower F,towers per game round,2012,144,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower F,towers per game round,2013,167,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower F,towers per game round,2014,204,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower F,towers per game round,2015,187,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower F,towers per game round,2016,201,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower F,towers per game round,2017,180,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower F,towers per game round,2018,206,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower F,towers per game round,2019,220,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower F,towers per game round,2020,205,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower F,towers per game round,2021,216,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower F,towers per game round,2022,246,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower F,towers per game round,2023,270,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower F,towers per game round,2024,257,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,sales_volume,Tower F,towers per game round,2025,276,towers,Blokko site: Market data,based on 9 factories; 2025 may be the forecast for this game round (to confirm)
+market,price,Tower A,standard price,2015,114,pleuro,Blokko site: Market data,
+market,price,Tower A,standard price,2016,112,pleuro,Blokko site: Market data,
+market,price,Tower A,standard price,2017,123,pleuro,Blokko site: Market data,
+market,price,Tower A,standard price,2018,131,pleuro,Blokko site: Market data,
+market,price,Tower A,standard price,2019,144,pleuro,Blokko site: Market data,
+market,price,Tower A,standard price,2020,139,pleuro,Blokko site: Market data,
+market,price,Tower A,standard price,2021,144,pleuro,Blokko site: Market data,
+market,price,Tower A,standard price,2022,153,pleuro,Blokko site: Market data,
+market,price,Tower A,standard price,2023,160,pleuro,Blokko site: Market data,
+market,price,Tower A,standard price,2024,164,pleuro,Blokko site: Market data,
+market,price,Tower A,standard price,2025,171,pleuro,Blokko site: Market data,
+market,price,Tower B,standard price,2015,98,pleuro,Blokko site: Market data,
+market,price,Tower B,standard price,2016,95,pleuro,Blokko site: Market data,
+market,price,Tower B,standard price,2017,120,pleuro,Blokko site: Market data,
+market,price,Tower B,standard price,2018,158,pleuro,Blokko site: Market data,
+market,price,Tower B,standard price,2019,160,pleuro,Blokko site: Market data,
+market,price,Tower B,standard price,2020,171,pleuro,Blokko site: Market data,
+market,price,Tower B,standard price,2021,183,pleuro,Blokko site: Market data,
+market,price,Tower B,standard price,2022,200,pleuro,Blokko site: Market data,
+market,price,Tower B,standard price,2023,218,pleuro,Blokko site: Market data,
+market,price,Tower B,standard price,2024,223,pleuro,Blokko site: Market data,
+market,price,Tower B,standard price,2025,213,pleuro,Blokko site: Market data,
+market,price,Tower C,standard price,2015,110,pleuro,Blokko site: Market data,
+market,price,Tower C,standard price,2016,121,pleuro,Blokko site: Market data,
+market,price,Tower C,standard price,2017,123,pleuro,Blokko site: Market data,
+market,price,Tower C,standard price,2018,123,pleuro,Blokko site: Market data,
+market,price,Tower C,standard price,2019,123,pleuro,Blokko site: Market data,
+market,price,Tower C,standard price,2020,131,pleuro,Blokko site: Market data,
+market,price,Tower C,standard price,2021,134,pleuro,Blokko site: Market data,
+market,price,Tower C,standard price,2022,140,pleuro,Blokko site: Market data,
+market,price,Tower C,standard price,2023,141,pleuro,Blokko site: Market data,
+market,price,Tower C,standard price,2024,139,pleuro,Blokko site: Market data,
+market,price,Tower C,standard price,2025,154,pleuro,Blokko site: Market data,
+market,price,Tower D,standard price,2015,104,pleuro,Blokko site: Market data,
+market,price,Tower D,standard price,2016,92,pleuro,Blokko site: Market data,
+market,price,Tower D,standard price,2017,92,pleuro,Blokko site: Market data,
+market,price,Tower D,standard price,2018,98,pleuro,Blokko site: Market data,
+market,price,Tower D,standard price,2019,98,pleuro,Blokko site: Market data,
+market,price,Tower D,standard price,2020,120,pleuro,Blokko site: Market data,
+market,price,Tower D,standard price,2021,121,pleuro,Blokko site: Market data,
+market,price,Tower D,standard price,2022,149,pleuro,Blokko site: Market data,
+market,price,Tower D,standard price,2023,170,pleuro,Blokko site: Market data,
+market,price,Tower D,standard price,2024,188,pleuro,Blokko site: Market data,
+market,price,Tower D,standard price,2025,192,pleuro,Blokko site: Market data,
+market,price,Tower E,standard price,2015,121,pleuro,Blokko site: Market data,
+market,price,Tower E,standard price,2016,122,pleuro,Blokko site: Market data,
+market,price,Tower E,standard price,2017,123,pleuro,Blokko site: Market data,
+market,price,Tower E,standard price,2018,167,pleuro,Blokko site: Market data,
+market,price,Tower E,standard price,2019,168,pleuro,Blokko site: Market data,
+market,price,Tower E,standard price,2020,169,pleuro,Blokko site: Market data,
+market,price,Tower E,standard price,2021,170,pleuro,Blokko site: Market data,
+market,price,Tower E,standard price,2022,181,pleuro,Blokko site: Market data,
+market,price,Tower E,standard price,2023,222,pleuro,Blokko site: Market data,
+market,price,Tower E,standard price,2024,210,pleuro,Blokko site: Market data,
+market,price,Tower E,standard price,2025,261,pleuro,Blokko site: Market data,
+market,price,Tower F,standard price,2015,110,pleuro,Blokko site: Market data,
+market,price,Tower F,standard price,2016,112,pleuro,Blokko site: Market data,
+market,price,Tower F,standard price,2017,131,pleuro,Blokko site: Market data,
+market,price,Tower F,standard price,2018,145,pleuro,Blokko site: Market data,
+market,price,Tower F,standard price,2019,156,pleuro,Blokko site: Market data,
+market,price,Tower F,standard price,2020,187,pleuro,Blokko site: Market data,
+market,price,Tower F,standard price,2021,201,pleuro,Blokko site: Market data,
+market,price,Tower F,standard price,2022,203,pleuro,Blokko site: Market data,
+market,price,Tower F,standard price,2023,224,pleuro,Blokko site: Market data,
+market,price,Tower F,standard price,2024,243,pleuro,Blokko site: Market data,
+market,price,Tower F,standard price,2025,235,pleuro,Blokko site: Market data,
+market,price,Unique Tower - Budget,standard price,2025,120,pleuro,Blokko site: Market data,
+market,price,Unique Tower - Exclusive,standard price,2025,220,pleuro,Blokko site: Market data,
+market,price_limit,Tower A,minimum price,2025,137,pleuro,Blokko site: Market data,must be followed
+market,price_limit,Tower A,maximum price,2025,205,pleuro,Blokko site: Market data,must be followed
+market,price_limit,Tower B,minimum price,2025,170,pleuro,Blokko site: Market data,must be followed
+market,price_limit,Tower B,maximum price,2025,256,pleuro,Blokko site: Market data,must be followed
+market,price_limit,Tower C,minimum price,2025,123,pleuro,Blokko site: Market data,must be followed
+market,price_limit,Tower C,maximum price,2025,185,pleuro,Blokko site: Market data,must be followed
+market,price_limit,Tower D,minimum price,2025,154,pleuro,Blokko site: Market data,must be followed
+market,price_limit,Tower D,maximum price,2025,230,pleuro,Blokko site: Market data,must be followed
+market,price_limit,Tower E,minimum price,2025,209,pleuro,Blokko site: Market data,must be followed
+market,price_limit,Tower E,maximum price,2025,313,pleuro,Blokko site: Market data,must be followed
+market,price_limit,Tower F,minimum price,2025,188,pleuro,Blokko site: Market data,must be followed
+market,price_limit,Tower F,maximum price,2025,282,pleuro,Blokko site: Market data,must be followed
+market,price_limit,Unique Tower - Budget,minimum price,2025,96,pleuro,Blokko site: Market data,must be followed
+market,price_limit,Unique Tower - Budget,maximum price,2025,144,pleuro,Blokko site: Market data,must be followed
+market,price_limit,Unique Tower - Exclusive,minimum price,2025,176,pleuro,Blokko site: Market data,must be followed
+market,price_limit,Unique Tower - Exclusive,maximum price,2025,264,pleuro,Blokko site: Market data,must be followed
+market,customer_share,Freesmij,share of towers ordered,2011,0.15,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Freesmij,share of towers ordered,2012,0.13,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Freesmij,share of towers ordered,2013,0.12,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Freesmij,share of towers ordered,2014,0.12,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Freesmij,share of towers ordered,2015,0.14,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Freesmij,share of towers ordered,2016,0.15,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Freesmij,share of towers ordered,2017,0.14,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Freesmij,share of towers ordered,2018,0.14,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Freesmij,share of towers ordered,2019,0.15,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Freesmij,share of towers ordered,2020,0.14,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Freesmij,share of towers ordered,2021,0.14,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Freesmij,share of towers ordered,2022,0.12,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Freesmij,share of towers ordered,2023,0.14,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Freesmij,share of towers ordered,2024,0.15,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Freesmij,share of towers ordered,2025,0.15,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Heijmans,share of towers ordered,2011,0.21,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Heijmans,share of towers ordered,2012,0.21,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Heijmans,share of towers ordered,2013,0.22,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Heijmans,share of towers ordered,2014,0.25,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Heijmans,share of towers ordered,2015,0.28,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Heijmans,share of towers ordered,2016,0.28,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Heijmans,share of towers ordered,2017,0.24,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Heijmans,share of towers ordered,2018,0.24,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Heijmans,share of towers ordered,2019,0.24,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Heijmans,share of towers ordered,2020,0.22,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Heijmans,share of towers ordered,2021,0.2,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Heijmans,share of towers ordered,2022,0.22,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Heijmans,share of towers ordered,2023,0.25,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Heijmans,share of towers ordered,2024,0.25,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Heijmans,share of towers ordered,2025,0.24,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Stork,share of towers ordered,2011,0.15,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Stork,share of towers ordered,2012,0.13,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Stork,share of towers ordered,2013,0.13,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Stork,share of towers ordered,2014,0.15,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Stork,share of towers ordered,2015,0.14,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Stork,share of towers ordered,2016,0.13,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Stork,share of towers ordered,2017,0.13,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Stork,share of towers ordered,2018,0.13,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Stork,share of towers ordered,2019,0.13,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Stork,share of towers ordered,2020,0.14,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Stork,share of towers ordered,2021,0.13,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Stork,share of towers ordered,2022,0.12,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Stork,share of towers ordered,2023,0.1,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Stork,share of towers ordered,2024,0.11,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Stork,share of towers ordered,2025,0.12,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,VH Infra,share of towers ordered,2011,0.21,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,VH Infra,share of towers ordered,2012,0.19,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,VH Infra,share of towers ordered,2013,0.19,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,VH Infra,share of towers ordered,2014,0.17,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,VH Infra,share of towers ordered,2015,0.17,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,VH Infra,share of towers ordered,2016,0.18,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,VH Infra,share of towers ordered,2017,0.18,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,VH Infra,share of towers ordered,2018,0.16,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,VH Infra,share of towers ordered,2019,0.14,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,VH Infra,share of towers ordered,2020,0.15,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,VH Infra,share of towers ordered,2021,0.15,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,VH Infra,share of towers ordered,2022,0.17,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,VH Infra,share of towers ordered,2023,0.17,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,VH Infra,share of towers ordered,2024,0.17,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,VH Infra,share of towers ordered,2025,0.18,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Voeten & Leppens,share of towers ordered,2011,0.28,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Voeten & Leppens,share of towers ordered,2012,0.34,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Voeten & Leppens,share of towers ordered,2013,0.33,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Voeten & Leppens,share of towers ordered,2014,0.31,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Voeten & Leppens,share of towers ordered,2015,0.27,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Voeten & Leppens,share of towers ordered,2016,0.26,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Voeten & Leppens,share of towers ordered,2017,0.32,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Voeten & Leppens,share of towers ordered,2018,0.33,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Voeten & Leppens,share of towers ordered,2019,0.34,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Voeten & Leppens,share of towers ordered,2020,0.35,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Voeten & Leppens,share of towers ordered,2021,0.38,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Voeten & Leppens,share of towers ordered,2022,0.37,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Voeten & Leppens,share of towers ordered,2023,0.33,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Voeten & Leppens,share of towers ordered,2024,0.32,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,customer_share,Voeten & Leppens,share of towers ordered,2025,0.31,fraction,Blokko site: Market data,source rounding: some years sum to 0.99 or 1.01
+market,market_info,Starting orders,share of total market,2025,0.43,fraction,Blokko site: Market data,
+market,market_info,Factories,number the market data is based on,2025,9,factories,Blokko site: Market data,our session may have 7 (to confirm)
+market,market_info,Unique Tower - Budget,max extra market share,2025,0.1,fraction,Blokko site: Market data,on top of regular volumes
+market,market_info,Unique Tower - Exclusive,max extra market share,2025,0.05,fraction,Blokko site: Market data,on top of regular volumes
+customers,customer_profile,Heijmans,location,,national,text,Blokko site: Customers 360,"Dutch, worldwide; forerunner in sustainable Lego structures"
+customers,customer_profile,Freesmij,location,,international,text,Blokko site: Customers 360,"Belgian family firm since 1962, 60+ countries; complex Lego structures"
+customers,customer_profile,VH Infra,location,,international,text,Blokko site: Customers 360,"infrastructure, public lighting and traffic, public transport networks"
+customers,customer_profile,Voeten & Leppens,location,,local,text,Blokko site: Customers 360,"Breda street-paving firm, about 60 years old"
+customers,customer_profile,Stork,location,,national,text,Blokko site: Customers 360,"technology and energy transitions, since 1865"
+transport,distance_band,local,range,,within 50 km,text,Blokko site: Transport & Distribution,
+transport,distance_band,national,range,,50-200 km,text,Blokko site: Transport & Distribution,
+transport,distance_band,international,range,,max 2000 km,text,Blokko site: Transport & Distribution,
+transport,distance_band,intercontinental,range,,2000+ km,text,Blokko site: Transport & Distribution,
+sales,cost,Marketing and sales overhead,per week,,50,pleuro,Blokko site: Customers 360,charged every 4 weeks
+sales,cost,Sales order admin,per sales order,,100,pleuro,Blokko site: Customers 360,also charged for every starting order
+game,time,Week,real minutes per game week,,4,minutes,Blokko site: General game rules,
+game,time,Session,real duration,,120,minutes,Blokko site: General game rules,
+game,time,Session,game weeks per session,,30,weeks,calculated: 120 / 4,
+game,time,Fixed costs,charged every,,4,weeks,Blokko site: General game rules,
+game,scoring,"Customer satisfaction (on time, in full)",assessment factor,,1,rank,Blokko site: General game rules,
+game,scoring,Sustainability rating,assessment factor,,2,rank,Blokko site: General game rules,
+game,scoring,Revenue,assessment factor,,3,rank,Blokko site: General game rules,
+game,scoring,Profit at end of game,assessment factor,,4,rank,Blokko site: General game rules,
+fines,fine,Overloaded transport,fine,,500,pleuro,Blokko site: Authorities,plus operations stopped for 1 week
+fines,fine,Missing paperwork,1st offence,,200,pleuro,Blokko site: Authorities,
+fines,fine,Missing paperwork,2nd offence,,400,pleuro,Blokko site: Authorities,
+fines,fine,Missing paperwork,3rd offence,,600,pleuro,Blokko site: Authorities,
+fines,fine,Messy warehouse,penalty,,factory shutdown,text,Blokko site: Authorities,until restructured
+assets,asset,Warehouse (9 bulk locations),purchase price,,1500,pleuro,Blokko site: Assets,type: warehouse; paid directly
+assets,asset,Warehouse (9 bulk locations),capacity,,9,locations,Blokko site: Assets,
+assets,asset,Warehouse (9 bulk locations),delivery time during game,,5,weeks,Blokko site: Assets,
+assets,asset,Pick wall,purchase price,,50,pleuro,Blokko site: Assets,type: warehouse; paid directly
+assets,asset,Pick wall,capacity,,2,locations from 1,Blokko site: Assets,
+assets,asset,Pick wall,delivery time during game,,1,weeks,Blokko site: Assets,
+assets,asset,Container,purchase price,,700,pleuro,Blokko site: Assets,type: transport; paid directly
+assets,asset,Container,capacity,,8,towers (1 full load),Blokko site: Assets,
+assets,asset,Container,delivery time before game,,0,weeks,Blokko site: Assets,
+assets,asset,Container,delivery time during game,,1,weeks,Blokko site: Assets,
+assets,asset,Small truck,purchase price,,400,pleuro,Blokko site: Assets,type: distribution; paid directly
+assets,asset,Small truck,capacity,,2,towers,Blokko site: Assets,
+assets,asset,Small truck,delivery time before game,,0,weeks,Blokko site: Assets,
+assets,asset,Small truck,delivery time during game,,5,weeks,Blokko site: Assets,
+assets,asset,Medium truck,purchase price,,600,pleuro,Blokko site: Assets,type: distribution; paid directly
+assets,asset,Medium truck,capacity,,4,towers,Blokko site: Assets,
+assets,asset,Medium truck,delivery time before game,,0,weeks,Blokko site: Assets,
+assets,asset,Medium truck,delivery time during game,,5,weeks,Blokko site: Assets,
+assets,asset,Big truck,purchase price,,1000,pleuro,Blokko site: Assets,type: distribution; paid directly
+assets,asset,Big truck,capacity,,8,towers,Blokko site: Assets,
+assets,asset,Big truck,delivery time before game,,0,weeks,Blokko site: Assets,
+assets,asset,Big truck,delivery time during game,,10,weeks,Blokko site: Assets,
+assets,asset,Boat,purchase price,,2000,pleuro,Blokko site: Assets,type: distribution; paid directly
+assets,asset,Boat,capacity,,16,towers,Blokko site: Assets,"boat: 16 on asset page, 20 on footprint page (to confirm)"
+assets,asset,Boat,delivery time before game,,0,weeks,Blokko site: Assets,
+assets,asset,Boat,delivery time during game,,15,weeks,Blokko site: Assets,
+assets,asset,Train,purchase price,,3000,pleuro,Blokko site: Assets,type: distribution; paid directly
+assets,asset,Train,capacity,,32,towers,Blokko site: Assets,
+assets,asset,Train,delivery time before game,,60,weeks,Blokko site: Assets,
+assets,asset,Train,delivery time during game,,60,weeks,Blokko site: Assets,train: 60 weeks is longer than a session (to confirm)
+assets,asset,Machine A,purchase price,,1200,pleuro,Blokko site: Assets,type: production; paid directly
+assets,asset,Machine A,delivery time during game,,15,weeks,Blokko site: Assets,
+assets,asset,Machine B,purchase price,,1200,pleuro,Blokko site: Assets,type: production; paid directly
+assets,asset,Machine B,delivery time during game,,15,weeks,Blokko site: Assets,
+assets,asset,Machine C,purchase price,,1200,pleuro,Blokko site: Assets,type: production; paid directly
+assets,asset,Machine C,delivery time during game,,15,weeks,Blokko site: Assets,
+assets,asset_rule,Warehouse location,products per location,,1,product type,Blokko site: Assets,"raw, semi-finished or finished"
+assets,asset_rule,Container,suppliers per trip,,1,supplier,Blokko site: Transport & Distribution,one PO per trip; raw materials only
+assets,asset_rule,Boat,drivers needed,,2,persons,Blokko site: Assets,walking only
+assets,asset_rule,Train,drivers needed,,3,persons,Blokko site: Assets,must be in line
+assets,running_cost,Transport assets,tax and insurance per week,,0.01,fraction of purchase price,Blokko site: Transport & Distribution,charged every 4 weeks
+assets,depreciation,Transport assets,per session,,0.25,fraction of purchase price,Blokko site: Transport & Distribution,
+assets,depreciation,Warehouses,per session,,0.2,fraction of purchase price,Blokko site: Transport & Distribution,
+assets,depreciation,Machines,per session,,0.4,fraction of purchase price,Blokko site: Production,
+assets,running_cost,"Transport, warehouse and distribution staff",per week,,50,pleuro,Blokko site: Transport & Distribution,whether per department is to be confirmed
+transport,container_trip_cost,Container,local,,20,pleuro per trip,Blokko site: Transport & Distribution,
+transport,container_trip_cost,Container,national,,40,pleuro per trip,Blokko site: Transport & Distribution,
+transport,container_trip_cost,Container,international,,60,pleuro per trip,Blokko site: Transport & Distribution,
+transport,container_trip_cost,Container,intercontinental,,80,pleuro per trip,Blokko site: Transport & Distribution,
+transport,distribution_trip_cost,Small truck,local,,8,pleuro per trip,Blokko site: Transport & Distribution,never more than the cost to the farthest customer
+transport,distribution_trip_cost,Small truck,national,,16,pleuro per trip,Blokko site: Transport & Distribution,never more than the cost to the farthest customer
+transport,distribution_trip_cost,Small truck,international,,24,pleuro per trip,Blokko site: Transport & Distribution,never more than the cost to the farthest customer
+transport,distribution_trip_cost,Small truck,intercontinental,,48,pleuro per trip,Blokko site: Transport & Distribution,never more than the cost to the farthest customer
+transport,distribution_trip_cost,Medium truck,local,,10,pleuro per trip,Blokko site: Transport & Distribution,never more than the cost to the farthest customer
+transport,distribution_trip_cost,Medium truck,national,,20,pleuro per trip,Blokko site: Transport & Distribution,never more than the cost to the farthest customer
+transport,distribution_trip_cost,Medium truck,international,,30,pleuro per trip,Blokko site: Transport & Distribution,never more than the cost to the farthest customer
+transport,distribution_trip_cost,Medium truck,intercontinental,,60,pleuro per trip,Blokko site: Transport & Distribution,never more than the cost to the farthest customer
+transport,distribution_trip_cost,Big truck,local,,15,pleuro per trip,Blokko site: Transport & Distribution,never more than the cost to the farthest customer
+transport,distribution_trip_cost,Big truck,national,,30,pleuro per trip,Blokko site: Transport & Distribution,never more than the cost to the farthest customer
+transport,distribution_trip_cost,Big truck,international,,45,pleuro per trip,Blokko site: Transport & Distribution,never more than the cost to the farthest customer
+transport,distribution_trip_cost,Big truck,intercontinental,,90,pleuro per trip,Blokko site: Transport & Distribution,never more than the cost to the farthest customer
+transport,distribution_trip_cost,Boat,local,,25,pleuro per trip,Blokko site: Transport & Distribution,never more than the cost to the farthest customer
+transport,distribution_trip_cost,Boat,national,,50,pleuro per trip,Blokko site: Transport & Distribution,never more than the cost to the farthest customer
+transport,distribution_trip_cost,Boat,international,,75,pleuro per trip,Blokko site: Transport & Distribution,never more than the cost to the farthest customer
+transport,distribution_trip_cost,Boat,intercontinental,,150,pleuro per trip,Blokko site: Transport & Distribution,never more than the cost to the farthest customer
+transport,distribution_trip_cost,Train,local,,30,pleuro per trip,Blokko site: Transport & Distribution,never more than the cost to the farthest customer
+transport,distribution_trip_cost,Train,national,,60,pleuro per trip,Blokko site: Transport & Distribution,never more than the cost to the farthest customer
+transport,distribution_trip_cost,Train,international,,90,pleuro per trip,Blokko site: Transport & Distribution,never more than the cost to the farthest customer
+transport,distribution_trip_cost,Train,intercontinental,,180,pleuro per trip,Blokko site: Transport & Distribution,never more than the cost to the farthest customer
+sustainability,co2_fixed_per_trip,Small truck,local,,9.4,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Small truck,local,,4.7,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Small truck,national,,40.0,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Small truck,national,,20.0,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Small truck,international,,185.2,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Small truck,international,,92.6,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Small truck,intercontinental,,3090.0,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Small truck,intercontinental,,1545.0,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Medium truck,local,,14.7,kg CO2,Blokko site: Footprint,medium truck local fixed value partly hidden in screenshot; about 3.7 x 4
+sustainability,co2_per_tower,Medium truck,local,,3.7,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Medium truck,national,,69.8,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Medium truck,national,,17.4,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Medium truck,international,,321.4,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Medium truck,international,,80.3,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Medium truck,intercontinental,,5356.7,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Medium truck,intercontinental,,1339.2,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Big truck,local,,18.1,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Big truck,local,,2.3,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Big truck,national,,85.8,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Big truck,national,,10.7,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Big truck,international,,395.6,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Big truck,international,,49.4,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Big truck,intercontinental,,6592.8,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Big truck,intercontinental,,824.1,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Boat,local,,21.8,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Boat,local,,1.1,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Boat,national,,88.3,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Boat,national,,4.4,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Boat,international,,451.2,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Boat,international,,22.6,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Boat,intercontinental,,6761.3,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Boat,intercontinental,,338.1,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Container,local,,18.14,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Container,local,,2.3,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Container,national,,85.8,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Container,national,,10.7,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Container,international,,395.5,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Container,international,,49.4,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Container,intercontinental,,1701.1,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Container,intercontinental,,212.6,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Airplane,local,,509.4,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Airplane,local,,127.3,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Airplane,national,,976.1,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Airplane,national,,244.0,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Airplane,international,,3198.7,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Airplane,international,,799.7,kg CO2,Blokko site: Footprint,
+sustainability,co2_fixed_per_trip,Airplane,intercontinental,,15784.1,kg CO2,Blokko site: Footprint,
+sustainability,co2_per_tower,Airplane,intercontinental,,3946.0,kg CO2,Blokko site: Footprint,
+sustainability,conversion,Tower,weight,,800,kg,Blokko site: Footprint,
+production,machine,Machine A,run time per 2 towers,,0.5,minutes,Blokko site: Production,
+production,machine,Machine A,changeover time,,2,minutes,Blokko site: Production,
+production,machine,Machine A,towers per hour without changeovers,,240,towers,calculated: 2 towers / run time x 60,
+production,machine,Machine B,run time per 2 towers,,0.25,minutes,Blokko site: Production,
+production,machine,Machine B,changeover time,,0,minutes,Blokko site: Production,B: administration only
+production,machine,Machine B,towers per hour without changeovers,,480,towers,calculated: 2 towers / run time x 60,
+production,machine,Machine C,run time per 2 towers,,0.25,minutes,Blokko site: Production,
+production,machine,Machine C,changeover time,,1,minutes,Blokko site: Production,
+production,machine,Machine C,towers per hour without changeovers,,480,towers,calculated: 2 towers / run time x 60,
+production,cost,Production order,per run per machine,,20,pleuro,Blokko site: Production,"minimum 2 towers, multiples of 2"
+production,cost,Changeover,per changeover,,25,pleuro,Blokko site: Production,whether B also pays 25 is to be confirmed
+production,cost,Machine fixed cost,per machine per week,,20,pleuro,Blokko site: Production,
+production,cost,Machine operator,per machine per week,,20,pleuro,Blokko site: Production,
+procurement,material_price,Block 2x2 White,Hay-Lin advised price,,3,pleuro,Blokko site: Hay-Lin (advised prices),prices fluctuate during session; assumed to be Hay-Lin's list (to confirm)
+procurement,material_price,Block 2x2 Black,Hay-Lin advised price,,3,pleuro,Blokko site: Hay-Lin (advised prices),prices fluctuate during session; assumed to be Hay-Lin's list (to confirm)
+procurement,material_price,Block 2x2 Red,Hay-Lin advised price,,4,pleuro,Blokko site: Hay-Lin (advised prices),prices fluctuate during session; assumed to be Hay-Lin's list (to confirm)
+procurement,material_price,Block 2x2 Blue,Hay-Lin advised price,,8,pleuro,Blokko site: Hay-Lin (advised prices),prices fluctuate during session; assumed to be Hay-Lin's list (to confirm)
+procurement,material_price,Block 2x2 Grey,Hay-Lin advised price,,6,pleuro,Blokko site: Hay-Lin (advised prices),prices fluctuate during session; assumed to be Hay-Lin's list (to confirm)
+procurement,material_price,Block 2x2 Yellow,Hay-Lin advised price,,15,pleuro,Blokko site: Hay-Lin (advised prices),prices fluctuate during session; assumed to be Hay-Lin's list (to confirm)
+procurement,material_price,Block 2x2 Green,Hay-Lin advised price,,6,pleuro,Blokko site: Hay-Lin (advised prices),prices fluctuate during session; assumed to be Hay-Lin's list (to confirm)
+procurement,material_price,Rod 2x4 Black,Hay-Lin advised price,,28,pleuro,Blokko site: Hay-Lin (advised prices),prices fluctuate during session; assumed to be Hay-Lin's list (to confirm)
+procurement,material_price,Rod 2x4 Red,Hay-Lin advised price,,9,pleuro,Blokko site: Hay-Lin (advised prices),prices fluctuate during session; assumed to be Hay-Lin's list (to confirm)
+procurement,material_price,Rod 2x4 Blue,Hay-Lin advised price,,9,pleuro,Blokko site: Hay-Lin (advised prices),prices fluctuate during session; assumed to be Hay-Lin's list (to confirm)
+procurement,material_price,Rod 2x4 Grey,Hay-Lin advised price,,15,pleuro,Blokko site: Hay-Lin (advised prices),prices fluctuate during session; assumed to be Hay-Lin's list (to confirm)
+procurement,material_price,Rod 2x4 Yellow,Hay-Lin advised price,,5,pleuro,Blokko site: Hay-Lin (advised prices),prices fluctuate during session; assumed to be Hay-Lin's list (to confirm)
+procurement,material_price,Rod 2x4 White,Hay-Lin advised price,,3,pleuro,Blokko site: Hay-Lin (advised prices),prices fluctuate during session; assumed to be Hay-Lin's list (to confirm)
+procurement,material_price,Rod 2x4 Green,Hay-Lin advised price,,5,pleuro,Blokko site: Hay-Lin (advised prices),prices fluctuate during session; assumed to be Hay-Lin's list (to confirm)
+procurement,material_price,Base plate Green/Black,Hay-Lin advised price,,8,pleuro,Blokko site: Hay-Lin (advised prices),prices fluctuate during session; assumed to be Hay-Lin's list (to confirm)
+procurement,material_price,Cover plate Red,Hay-Lin advised price,,13,pleuro,Blokko site: Hay-Lin (advised prices),prices fluctuate during session; assumed to be Hay-Lin's list (to confirm)
+procurement,starting_stock,Block 2x2 White,quantity,,6,pieces,Blokko site: Procurement,
+procurement,starting_stock,Block 2x2 White,value,,24,pleuro,Blokko site: Procurement,
+procurement,starting_stock,Block 2x2 White,unit price,,4.0,pleuro,calculated: value / quantity,
+procurement,starting_stock,Block 2x2 Red,quantity,,3,pieces,Blokko site: Procurement,
+procurement,starting_stock,Block 2x2 Red,value,,15,pleuro,Blokko site: Procurement,
+procurement,starting_stock,Block 2x2 Red,unit price,,5.0,pleuro,calculated: value / quantity,
+procurement,starting_stock,Block 2x2 Grey,quantity,,4,pieces,Blokko site: Procurement,
+procurement,starting_stock,Block 2x2 Grey,value,,32,pleuro,Blokko site: Procurement,
+procurement,starting_stock,Block 2x2 Grey,unit price,,8.0,pleuro,calculated: value / quantity,
+procurement,starting_stock,Block 2x2 Green,quantity,,6,pieces,Blokko site: Procurement,
+procurement,starting_stock,Block 2x2 Green,value,,42,pleuro,Blokko site: Procurement,
+procurement,starting_stock,Block 2x2 Green,unit price,,7.0,pleuro,calculated: value / quantity,
+procurement,starting_stock,Rod 2x4 White,quantity,,6,pieces,Blokko site: Procurement,
+procurement,starting_stock,Rod 2x4 White,value,,24,pleuro,Blokko site: Procurement,
+procurement,starting_stock,Rod 2x4 White,unit price,,4.0,pleuro,calculated: value / quantity,
+procurement,starting_stock,Rod 2x4 Green,quantity,,10,pieces,Blokko site: Procurement,
+procurement,starting_stock,Rod 2x4 Green,value,,60,pleuro,Blokko site: Procurement,
+procurement,starting_stock,Rod 2x4 Green,unit price,,6.0,pleuro,calculated: value / quantity,
+procurement,starting_stock,Base plate Green/Black,quantity,,6,pieces,Blokko site: Procurement,
+procurement,starting_stock,Base plate Green/Black,value,,66,pleuro,Blokko site: Procurement,
+procurement,starting_stock,Base plate Green/Black,unit price,,11.0,pleuro,calculated: value / quantity,
+procurement,starting_stock,Total,invoice,,263,pleuro,Blokko site: Procurement,pay within 5 weeks
+procurement,po_rule,Purchase order,maximum value,,350,pleuro,Blokko site: Procurement,includes supplier admin 40
+procurement,po_rule,Purchase order,supplier admin,,40,pleuro,Blokko site: Procurement,
+procurement,po_rule,Purchase order,internal admin,,20,pleuro,Blokko site: Procurement,
+procurement,supplier,Hay-Lin,location,,intercontinental,text,Blokko site: Hay-Lin,cheapest; long transit; delivers itself; pays transport if late
+procurement,supplier,Steen BV,location,,unknown,text,Blokko site: Suppliers,ask project coordinator
+procurement,supplier,Jackson Inc.,location,,unknown,text,Blokko site: Suppliers,ask project coordinator
+procurement,supplier,Groen Wit,location,,unknown,text,Blokko site: Suppliers,ask project coordinator
+production,bill_of_materials,Tower A,Machine A: Base plate Green/Black,,1,pieces,"Blokko build drawings (Machine A, B, C)",
+production,bill_of_materials,Tower A,Machine A: Rod 2x4 Green,,2,pieces,"Blokko build drawings (Machine A, B, C)",
+production,bill_of_materials,Tower A,Machine B: Rod 2x4 Red,,1,pieces,"Blokko build drawings (Machine A, B, C)",
+production,bill_of_materials,Tower A,Machine C: Block 2x2 Red,,1,pieces,"Blokko build drawings (Machine A, B, C)","A: list says red top block, drawing shows white (to confirm)"
+calculated,material_cost,Tower A,material cost per tower,,31,pleuro,calculated: bill of materials x Hay-Lin prices,
+calculated,margin,Tower A,2025 price minus material cost,,140,pleuro,calculated,
+production,bill_of_materials,Tower B,Machine A: Base plate Green/Black,,1,pieces,"Blokko build drawings (Machine A, B, C)",
+production,bill_of_materials,Tower B,Machine A: Rod 2x4 Green,,2,pieces,"Blokko build drawings (Machine A, B, C)",
+production,bill_of_materials,Tower B,Machine B: Rod 2x4 Grey,,1,pieces,"Blokko build drawings (Machine A, B, C)",
+production,bill_of_materials,Tower B,Machine C: Block 2x2 Green,,1,pieces,"Blokko build drawings (Machine A, B, C)",
+calculated,material_cost,Tower B,material cost per tower,,39,pleuro,calculated: bill of materials x Hay-Lin prices,
+calculated,margin,Tower B,2025 price minus material cost,,174,pleuro,calculated,
+production,bill_of_materials,Tower C,Machine A: Base plate Green/Black,,1,pieces,"Blokko build drawings (Machine A, B, C)",
+production,bill_of_materials,Tower C,Machine A: Rod 2x4 White,,2,pieces,"Blokko build drawings (Machine A, B, C)",
+production,bill_of_materials,Tower C,Machine B: Rod 2x4 White,,1,pieces,"Blokko build drawings (Machine A, B, C)",
+production,bill_of_materials,Tower C,Machine C: Block 2x2 Red,,1,pieces,"Blokko build drawings (Machine A, B, C)",
+calculated,material_cost,Tower C,material cost per tower,,21,pleuro,calculated: bill of materials x Hay-Lin prices,
+calculated,margin,Tower C,2025 price minus material cost,,133,pleuro,calculated,
+production,bill_of_materials,Tower D,Machine A: Base plate Green/Black,,1,pieces,"Blokko build drawings (Machine A, B, C)",
+production,bill_of_materials,Tower D,Machine A: Rod 2x4 White,,2,pieces,"Blokko build drawings (Machine A, B, C)",
+production,bill_of_materials,Tower D,Machine B: Rod 2x4 Blue,,1,pieces,"Blokko build drawings (Machine A, B, C)",
+production,bill_of_materials,Tower D,Machine C: Block 2x2 Red,,1,pieces,"Blokko build drawings (Machine A, B, C)",
+calculated,material_cost,Tower D,material cost per tower,,27,pleuro,calculated: bill of materials x Hay-Lin prices,
+calculated,margin,Tower D,2025 price minus material cost,,165,pleuro,calculated,
+production,bill_of_materials,Tower E,Machine A: Base plate Green/Black,,1,pieces,"Blokko build drawings (Machine A, B, C)",
+production,bill_of_materials,Tower E,Machine A: Rod 2x4 Black,,2,pieces,"Blokko build drawings (Machine A, B, C)",
+production,bill_of_materials,Tower E,Machine B: Rod 2x4 Red,,1,pieces,"Blokko build drawings (Machine A, B, C)",
+production,bill_of_materials,Tower E,Machine C: Block 2x2 White,,1,pieces,"Blokko build drawings (Machine A, B, C)",
+calculated,material_cost,Tower E,material cost per tower,,76,pleuro,calculated: bill of materials x Hay-Lin prices,
+calculated,margin,Tower E,2025 price minus material cost,,185,pleuro,calculated,
+production,bill_of_materials,Tower F,Machine A: Base plate Green/Black,,1,pieces,"Blokko build drawings (Machine A, B, C)",
+production,bill_of_materials,Tower F,Machine A: Rod 2x4 Red,,2,pieces,"Blokko build drawings (Machine A, B, C)",
+production,bill_of_materials,Tower F,Machine B: Rod 2x4 Grey,,1,pieces,"Blokko build drawings (Machine A, B, C)",
+production,bill_of_materials,Tower F,Machine C: Block 2x2 Black,,1,pieces,"Blokko build drawings (Machine A, B, C)",
+calculated,material_cost,Tower F,material cost per tower,,44,pleuro,calculated: bill of materials x Hay-Lin prices,
+calculated,margin,Tower F,2025 price minus material cost,,191,pleuro,calculated,
+finance,finance_rule,Share capital,starting amount,,5000,pleuro,Blokko site: Financial,
+finance,finance_rule,Subordinated loan,maximum,,10000,pleuro,Blokko site: Financial,needs convincing plan
+finance,finance_rule,Subordinated loan,base interest per session,,0.05,fraction,Blokko site: Financial,higher risk = higher rate
+finance,finance_rule,Bank account,credit limit,,-15000,pleuro,Blokko site: Financial,
+finance,finance_rule,Bank account,interest on negative balance per week,,0.25,fraction,Blokko site: Financial,charged weekly
+finance,finance_rule,Building,value,,25000,pleuro,Blokko site: Financial,100% mortgage
+finance,finance_rule,Mortgage,payback period,,5,rounds,Blokko site: Financial,linear
+finance,finance_rule,Mortgage,interest per round,,0.05,fraction,Blokko site: Financial,on outstanding balance
+finance,finance_rule,Building,depreciation per round,,0.1,fraction of purchase value,Blokko site: Financial,
+finance,finance_rule,General personnel,per week,,50,pleuro,Blokko site: Financial,charged every 4 weeks
+finance,finance_rule,Savings account,interest per week,,0.005,fraction,Blokko site: Financial,paid weekly
+finance,finance_rule,Blockchain wallet,fee per transaction,,0.05,fraction,Blokko site: Financial,currently suspended; Hay-Lin accepts bank payment
+finance,stock_valuation,Raw and semi-finished stock,valued at,,average purchase price,text,Blokko site: Transport & Distribution,
+finance,stock_valuation,Finished goods,valued at,,2.0,x average raw material cost,Blokko site: Transport & Distribution,
+legal,ip_request,IP protection request,cost,,200,pleuro,ESCM2 law lecture,request made public even if declined; decision within 6 working days
+</script>
+<script>
+/* =====================================================================
+   BBL dashboard · Factory 11 — app logic (no libraries, works offline)
+   Sections: 1 utils · 2 data · 3 market model (unchanged DD1 calcs)
+             4 charts · 5 KPI model · 6 storage · 7 import registry
+             8 views · 9 events · 10 boot
+   ===================================================================== */
+'use strict';
+
+/* ---------- 1. Utils ---------- */
+const NS = 'http://www.w3.org/2000/svg';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+function h(tag, attrs, ...kids) {
+  const n = document.createElement(tag);
+  setAttrs(n, attrs);
+  kids.flat().forEach((k) => { if (k == null || k === false) return; n.appendChild(typeof k === 'object' ? k : document.createTextNode(String(k))); });
+  return n;
+}
+function s(tag, attrs, parent, text) {
+  const n = document.createElementNS(NS, tag);
+  setAttrs(n, attrs);
+  if (text != null) n.textContent = text;
+  if (parent) parent.appendChild(n);
+  return n;
+}
+function setAttrs(n, attrs) {
+  if (!attrs) return;
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue;
+    if (k === 'class') n.setAttribute('class', v);
+    else if (k === 'style') n.setAttribute('style', v);
+    else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v === true ? '' : v);
+  }
+}
+const fmt0 = (v) => (v == null || !isFinite(v) ? '—' : Math.round(v).toLocaleString('en-US'));
+const fmt1 = (v) => (v == null || !isFinite(v) ? '—' : (Math.round(v * 10) / 10).toLocaleString('en-US', {minimumFractionDigits: 1, maximumFractionDigits: 1}));
+const fmtPct = (v, d = 1) => (v == null || !isFinite(v) ? '—' : (d === 0 ? Math.round(v) : fmt1(v)) + '%');
+const cssVar = (name) => `var(--${name})`;
+function linear(d0, d1, r0, r1) {
+  const f = (v) => r0 + (v - d0) / ((d1 - d0) || 1) * (r1 - r0);
+  f.invert = (p) => d0 + (p - r0) / ((r1 - r0) || 1) * (d1 - d0);
+  return f;
+}
+function step(lo, hi, count) {
+  const raw = Math.abs(hi - lo) / Math.max(1, count);
+  let st = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+  const e = raw / st;
+  if (e >= 7.07) st *= 10; else if (e >= 3.16) st *= 5; else if (e >= 1.41) st *= 2;
+  return st;
+}
+function nice(lo, hi, count = 5) {
+  if (lo === hi) { hi = lo + 1; }
+  const st = step(lo, hi, count);
+  const a = Math.floor(lo / st) * st, b = Math.ceil(hi / st) * st;
+  const ticks = [];
+  for (let v = a; v <= b + st / 2; v += st) ticks.push(+v.toFixed(10));
+  return {lo: a, hi: b, ticks};
+}
+function measure(svg, cls, texts) {
+  const g = s('g', null, svg); let m = 0;
+  texts.forEach((t) => { const n = s('text', {class: cls}, g, t); m = Math.max(m, n.getComputedTextLength()); });
+  g.remove(); return m;
+}
+
+/* ---------- 2. Data: the team CSV (embedded) ---------- */
+function parseCSV(text) {
+  const table = []; let row = [], f = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true;
+    else if (c === ',') { row.push(f); f = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(f); table.push(row); row = []; f = ''; }
+    else f += c;
+  }
+  if (f !== '' || row.length) { row.push(f); table.push(row); }
+  return table.filter((r) => r.length > 1 || (r[0] || '').trim() !== '');
+}
+function loadBlokko(text) {
+  const table = parseCSV(text.replace(/^﻿/, '').replace(/^\s+/, ''));
+  const head = table.shift().map((x) => x.trim());
+  const toNum = (v) => { const t = String(v ?? '').trim(); if (t === '') return null; return /^-?\d+(\.\d+)?$/.test(t) ? Number(t) : t; };
+  return table.map((r) => {
+    const o = {};
+    head.forEach((k, j) => { o[k] = (r[j] ?? '').trim(); });
+    o.value = toNum(o.value);
+    o.year = o.year === '' ? null : Number(o.year);
+    o.calculated = o.category === 'calculated' || /^calculated/i.test(o.source);
+    return o;
+  });
+}
+
+/* ---------- 3. Market model (DD1 calculations, unchanged) ---------- */
+const DEFAULT_PARAMS = {factories: 7, share: 0.4, latest: true};
+let params = {...DEFAULT_PARAMS};
+let ROWS = [];
+const model = {};
+
+function calcForecast(blokko, p) {
+  const baseFactories = Number((blokko.find((r) => r.dataset === 'market_info' && r.item === 'Factories') || {}).value) || 9;
+  const factories = Number(p.factories) > 0 ? Number(p.factories) : baseFactories;
+  const share = p.share == null ? 0.4 : Number(p.share);
+  const latest = p.latest !== false;
+  const vol = (t, y) => (blokko.find((r) => r.dataset === 'sales_volume' && r.item === t && r.year === y) || {}).value;
+  const towers = [...new Set(blokko.filter((r) => r.dataset === 'sales_volume').map((r) => r.item))];
+  return towers.map((tower) => {
+    const letter = tower.replace('Tower ', '');
+    const v2020 = vol(tower, 2020), v2025 = vol(tower, 2025);
+    const growth = Math.pow(v2025 / v2020, 1 / 5) - 1;
+    const baseExact = latest ? v2025 : v2025 * (1 + growth);
+    const demandExact = baseExact * factories / baseFactories;
+    const focus = letter === 'C' || letter === 'D';
+    const ourOrders = focus ? Math.round(demandExact * share) : 0;
+    const std = (blokko.find((r) => r.dataset === 'price' && r.item === tower && r.year === 2025) || {}).value;
+    const price = p['price_' + letter] != null ? Number(p['price_' + letter]) : std;
+    return {tower, letter, focus, forecastYear: latest ? 2025 : 2026, volume2025: v2025, growthPct: Math.round(growth * 1000) / 10,
+      base: Math.round(baseExact), baseExact, demand: Math.round(demandExact), ourOrders, price, revenue: ourOrders * price};
+  });
+}
+function calcEconomics(blokko, p) {
+  const get = (ds, t, attr, y) => (blokko.find((r) => r.dataset === ds && r.item === t && (attr == null || r.attribute === attr) && (y == null || r.year === y)) || {}).value;
+  const towers = [...new Set(blokko.filter((r) => r.dataset === 'material_cost').map((r) => r.item))];
+  return towers.map((tower) => {
+    const letter = tower.replace('Tower ', '');
+    const materialCost = get('material_cost', tower);
+    const price2025 = get('price', tower, null, 2025);
+    const ourPrice = p['price_' + letter] != null ? Number(p['price_' + letter]) : price2025;
+    const minPrice = get('price_limit', tower, 'minimum price', 2025);
+    const maxPrice = get('price_limit', tower, 'maximum price', 2025);
+    const margin = ourPrice - materialCost;
+    return {tower, letter, focus: letter === 'C' || letter === 'D', materialCost, price2025, ourPrice, minPrice, maxPrice,
+      inRange: ourPrice >= minPrice && ourPrice <= maxPrice, margin, marginPct: Math.round(margin / ourPrice * 1000) / 10, dataMargin: get('margin', tower)};
+  });
+}
+function calcSummary(forecast, economics, p) {
+  const cd = forecast.filter((r) => r.focus);
+  const mc = (t) => (economics.find((e) => e.tower === t) || {}).materialCost || 0;
+  return {
+    factories: Number(p.factories) > 0 ? Number(p.factories) : DEFAULT_PARAMS.factories,
+    sharePct: Math.round((p.share == null ? 0.4 : Number(p.share)) * 1000) / 10,
+    cdDemand: cd.reduce((a, r) => a + r.demand, 0),
+    ourCD: cd.reduce((a, r) => a + r.ourOrders, 0),
+    revenue: cd.reduce((a, r) => a + r.revenue, 0),
+    materialMargin: cd.reduce((a, r) => a + r.ourOrders * (r.price - mc(r.tower)), 0),
+    outOfRange: economics.filter((e) => !e.inRange).length
+  };
+}
+function calcCustomers(blokko) {
+  return blokko.filter((r) => r.dataset === 'customer_profile' && r.attribute === 'location').map((r) => {
+    const sh = (blokko.find((x) => x.dataset === 'customer_share' && x.item === r.item && x.year === 2025) || {}).value;
+    return {customer: r.item, location: r.value, share2025: Math.round(sh * 100)};
+  }).sort((a, b) => b.share2025 - a.share2025);
+}
+function recompute() {
+  model.forecast = calcForecast(ROWS, params);
+  model.economics = calcEconomics(ROWS, params);
+  model.summary = calcSummary(model.forecast, model.economics, params);
+  model.customers = calcCustomers(ROWS);
+}
+function series(ds) {
+  const by = new Map();
+  ROWS.filter((r) => r.dataset === ds && typeof r.value === 'number').forEach((r) => { if (!by.has(r.item)) by.set(r.item, []); by.get(r.item).push({x: r.year, y: r.value}); });
+  return [...by].map(([key, pts]) => ({key, points: pts.sort((a, b) => a.x - b.x)}));
+}
+const isCD = (t) => t === 'Tower C' || t === 'Tower D';
+const towerColor = (t) => (t === 'Tower C' ? cssVar('tower-c') : t === 'Tower D' ? cssVar('tower-d') : cssVar('tower-other'));
+const CUST_COLOR = {'Voeten & Leppens': 'cust-vl', 'Heijmans': 'cust-heijmans', 'VH Infra': 'cust-vh', 'Freesmij': 'cust-freesmij', 'Stork': 'cust-stork'};
+const custColor = (c) => cssVar(CUST_COLOR[c] || 'muted-series');
+function assetCapacity(item) { return Number((ROWS.find((r) => r.dataset === 'asset' && r.item === item && r.attribute === 'capacity') || {}).value) || null; }
+
+/* ---------- 4. Charts (SVG, hover tooltips) ---------- */
+function tipFor(el) {
+  const t = h('div', {class: 'tip', hidden: true}); el.appendChild(t);
+  return {
+    show(x, y, lines) {
+      t.replaceChildren(...lines.map((l, i) => h('div', {class: i === 0 ? 'tip-h' : 'tip-r'},
+        l.color ? h('span', {class: 'sw', style: `background:${l.color}`}) : null, h('span', null, l.label), l.value != null ? h('b', null, l.value) : null)));
+      t.hidden = false;
+      const w = el.clientWidth, tw = t.offsetWidth, th = t.offsetHeight;
+      let left = x + 14; if (left + tw > w) left = x - 14 - tw; if (left < 0) left = 0;
+      t.style.left = left + 'px'; t.style.top = Math.max(0, Math.min(el.clientHeight - th, y - th / 2)) + 'px';
+    },
+    hide() { t.hidden = true; }
+  };
+}
+function svgRoot(el, W, H, aria) {
+  el.replaceChildren();
+  return s('svg', {viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': aria}, el);
+}
+function localXY(ev, el) { const b = el.getBoundingClientRect(); return [ev.clientX - b.left, ev.clientY - b.top]; }
+function svgX(ev, svg, W) { const b = svg.getBoundingClientRect(); return (ev.clientX - b.left) * (W / b.width); }
+
+/* Line chart with end labels, crosshair and optional dotted extension */
+function lineChart(el, o) {
+  const W = Math.max(300, el.clientWidth), H = o.height || 300;
+  const svg = svgRoot(el, W, H, o.aria);
+  const pts = o.series.flatMap((x) => x.points.concat(x.ext || []));
+  const ys = nice(o.yMin != null ? o.yMin : 0, Math.max(...pts.map((p) => p.y)) * 1.04, 5);
+  const mTick = measure(svg, 'ax', ys.ticks.map(o.yFmt));
+  const mLab = o.endLabels === false ? 0 : measure(svg, 'lab hi', o.series.map((x) => x.label));
+  const m = {l: mTick + 12, r: mLab + 18, t: 10, b: 28};
+  const x = linear(o.x[0], o.x[1], m.l, W - m.r), y = linear(ys.lo, ys.hi, H - m.b, m.t);
+  ys.ticks.forEach((v) => { s('line', {class: 'gl', x1: m.l, x2: W - m.r, y1: y(v), y2: y(v)}, svg); s('text', {class: 'ax', x: m.l - 8, y: y(v) + 4, 'text-anchor': 'end'}, svg, o.yFmt(v)); });
+  const stepX = W < 520 ? 5 : W < 820 ? 2 : 1;
+  for (let v = o.x[0]; v <= o.x[1]; v++) {
+    if ((v - o.x[0]) % stepX !== 0 && v !== o.x[1]) continue;
+    if (v !== o.x[1] && o.x[1] - v < stepX) continue;
+    s('text', {class: 'ax', x: x(v), y: H - 8, 'text-anchor': 'middle'}, svg, String(v));
+  }
+  const path = (p) => 'M' + p.map((q) => `${x(q.x).toFixed(1)},${y(q.y).toFixed(1)}`).join('L');
+  const order = o.series.slice().sort((a, b) => (a.hi ? 1 : 0) - (b.hi ? 1 : 0));
+  order.forEach((sr) => {
+    s('path', {d: path(sr.points), fill: 'none', style: `stroke:${sr.color};stroke-width:${sr.width || 2};stroke-linejoin:round;stroke-linecap:round`}, svg);
+    if (sr.ext && sr.ext.length) s('path', {d: path(sr.ext), fill: 'none', style: `stroke:${sr.color};stroke-width:${sr.width || 2};stroke-dasharray:2 5;stroke-linecap:round`}, svg);
+    const last = (sr.ext && sr.ext.length ? sr.ext : sr.points).slice(-1)[0];
+    s('circle', {cx: x(last.x), cy: y(last.y), r: sr.hi ? 4.5 : 3.5, style: `fill:${sr.color};stroke:var(--slate);stroke-width:2`}, svg);
+  });
+  if (o.endLabels !== false) {
+    const gap = 15;
+    const labs = o.series.map((sr) => { const last = (sr.ext && sr.ext.length ? sr.ext : sr.points).slice(-1)[0]; return {sr, y: y(last.y)}; }).sort((a, b) => a.y - b.y);
+    for (let i = 1; i < labs.length; i++) if (labs[i].y - labs[i - 1].y < gap) labs[i].y = labs[i - 1].y + gap;
+    const bottom = H - m.b;
+    if (labs.length && labs[labs.length - 1].y > bottom) { labs[labs.length - 1].y = bottom; for (let i = labs.length - 2; i >= 0; i--) if (labs[i + 1].y - labs[i].y < gap) labs[i].y = labs[i + 1].y - gap; }
+    labs.forEach((l) => s('text', {class: 'lab' + (l.sr.hi ? ' hi' : ''), x: W - m.r + 9, y: l.y + 4}, svg, l.sr.label));
+  }
+  const cross = s('line', {class: 'cross', y1: m.t, y2: H - m.b, style: 'opacity:0'}, svg);
+  const dots = s('g', {style: 'pointer-events:none'}, svg);
+  const tip = tipFor(el);
+  const all = (sr) => sr.points.concat((sr.ext || []).slice(1));
+  s('rect', {x: m.l, y: 0, width: Math.max(0, W - m.r - m.l), height: H - m.b, style: 'fill:transparent', onpointermove: (ev) => {
+    const yr = Math.max(o.x[0], Math.min(o.x[1], Math.round(x.invert(svgX(ev, svg, W)))));
+    const rows = o.series.map((sr) => ({sr, p: all(sr).find((p) => p.x === yr)})).filter((r) => r.p).sort((a, b) => b.p.y - a.p.y);
+    if (!rows.length) { cross.style.opacity = 0; dots.replaceChildren(); tip.hide(); return; }
+    cross.setAttribute('x1', x(yr)); cross.setAttribute('x2', x(yr)); cross.style.opacity = 1;
+    dots.replaceChildren(); rows.forEach((r) => s('circle', {cx: x(yr), cy: y(r.p.y), r: 4.5, style: `fill:${r.sr.color};stroke:var(--slate);stroke-width:2`}, dots));
+    const [, ly] = localXY(ev, el);
+    tip.show(x(yr) * el.clientWidth / W, ly, [{label: yr + (rows.some((r) => r.p.fc) ? ' (forecast)' : '')}].concat(rows.map((r) => ({label: r.sr.label, value: (o.tipFmt || o.yFmt)(r.p.y), color: r.sr.color}))));
+  }, onpointerleave: () => { cross.style.opacity = 0; dots.replaceChildren(); tip.hide(); }}, svg);
+}
+
+/* Horizontal bars, optionally stacked segments */
+function barChart(el, rows, o) {
+  const W = Math.max(300, el.clientWidth), rowH = 36, H = rows.length * rowH + 24;
+  const svg = svgRoot(el, W, H, o.aria);
+  const mLab = measure(svg, 'lab hi', rows.map((r) => r.label)), mEnd = measure(svg, 'val', rows.map((r) => r.end));
+  const m = {l: mLab + 14, r: mEnd + 14};
+  const max = Math.max(1, ...rows.map((r) => r.segs.reduce((a, sg) => a + Math.max(0, sg.v), 0)));
+  const xs = nice(0, max, W < 480 ? 3 : 5); const x = linear(0, xs.hi, m.l, W - m.r);
+  xs.ticks.forEach((v) => { s('line', {class: 'gl', x1: x(v), x2: x(v), y1: 0, y2: H - 22}, svg); s('text', {class: 'ax', x: x(v), y: H - 5, 'text-anchor': 'middle'}, svg, fmt0(v)); });
+  const tip = tipFor(el);
+  rows.forEach((r, i) => {
+    const cy = i * rowH + rowH / 2;
+    s('text', {class: 'lab' + (r.hi ? ' hi' : ''), x: m.l - 10, y: cy + 4, 'text-anchor': 'end'}, svg, r.label);
+    let acc = 0; const segs = r.segs.filter((sg) => sg.v > 0);
+    segs.forEach((sg, j) => {
+      const x0 = x(acc) + (j ? 1.5 : 0), x1 = x(acc + sg.v) - (j < segs.length - 1 ? 1.5 : 0);
+      s('rect', {x: x0, y: cy - 10, width: Math.max(1, x1 - x0), height: 20, rx: 5, style: `fill:${sg.color};opacity:${sg.opacity == null ? 1 : sg.opacity}`}, svg);
+      acc += sg.v;
+    });
+    s('text', {class: 'val' + (r.bad ? ' bad' : ''), x: x(acc) + 8, y: cy + 4}, svg, r.end);
+    s('rect', {x: 0, y: cy - rowH / 2, width: W, height: rowH, style: 'fill:transparent', onpointermove: (ev) => { const [lx, ly] = localXY(ev, el); tip.show(lx, ly, r.tip); }, onpointerleave: () => tip.hide()}, svg);
+  });
+}
+
+/* Dumbbell / range chart */
+function rangeChart(el, rows, o) {
+  const W = Math.max(300, el.clientWidth), rowH = 32, H = rows.length * rowH + 24;
+  const svg = svgRoot(el, W, H, o.aria);
+  const mLab = measure(svg, 'lab hi', rows.map((r) => r.label)), mNum = measure(svg, 'ax', rows.map((r) => fmt0(r.max)));
+  const m = {l: mLab + 14 + mNum + 8, r: mNum + 14};
+  const lo = Math.min(...rows.map((r) => Math.min(r.min, r.ours ?? r.min))), hi = Math.max(...rows.map((r) => Math.max(r.max, r.ours ?? r.max)));
+  const xs = nice(lo * 0.95, hi * 1.03, W < 480 ? 3 : 5); const x = linear(xs.lo, xs.hi, m.l, W - m.r);
+  xs.ticks.forEach((v) => { s('line', {class: 'gl', x1: x(v), x2: x(v), y1: 0, y2: H - 22}, svg); s('text', {class: 'ax', x: x(v), y: H - 5, 'text-anchor': 'middle'}, svg, fmt0(v)); });
+  const tip = tipFor(el);
+  rows.forEach((r, i) => {
+    const cy = i * rowH + rowH / 2;
+    s('text', {class: 'lab' + (r.hi ? ' hi' : ''), x: mLab + 2, y: cy + 4, 'text-anchor': 'end'}, svg, r.label);
+    s('rect', {x: x(r.min), y: cy - 6, width: Math.max(1, x(r.max) - x(r.min)), height: 12, rx: 6, style: `fill:${r.hi ? 'rgba(242,155,112,.38)' : 'rgba(245,241,232,.18)'}`}, svg);
+    s('text', {class: 'ax', x: x(r.min) - 6, y: cy + 4, 'text-anchor': 'end'}, svg, fmt0(r.min));
+    s('text', {class: 'ax', x: x(r.max) + 6, y: cy + 4}, svg, fmt0(r.max));
+    s('line', {x1: x(r.std), x2: x(r.std), y1: cy - 9, y2: cy + 9, style: 'stroke:var(--cream);stroke-width:2'}, svg);
+    if (r.ours != null) s('circle', {cx: x(r.ours), cy, r: 5.5, style: `fill:${r.inRange ? 'var(--sky)' : 'var(--status-bad)'};stroke:var(--slate);stroke-width:2`}, svg);
+    const lines = [{label: r.label}, {label: 'Minimum', value: fmt0(r.min)}, {label: '2025 standard', value: fmt0(r.std)}, {label: 'Maximum', value: fmt0(r.max)}];
+    if (r.ours != null) lines.push({label: r.inRange ? 'Our price' : 'Our price (outside range)', value: fmt0(r.ours), color: r.inRange ? 'var(--sky)' : 'var(--status-bad)'});
+    s('rect', {x: 0, y: cy - rowH / 2, width: W, height: rowH, style: 'fill:transparent', onpointermove: (ev) => { const [lx, ly] = localXY(ev, el); tip.show(lx, ly, lines); }, onpointerleave: () => tip.hide()}, svg);
+  });
+}
+
+/* Period chart (review periods 1–N): bars or line, optional target line. p.week holds the period number. */
+function weekChart(el, o) {
+  const pts = o.points.filter((p) => p.v != null && isFinite(p.v));
+  if (pts.length < (o.minPoints || 1)) { el.replaceChildren(h('div', {class: 'chart-empty'}, o.empty || 'No measured reviews yet')); return; }
+  const W = Math.max(260, el.clientWidth), H = o.height || 200;
+  const svg = svgRoot(el, W, H, o.aria);
+  const vals = pts.map((p) => p.v).concat(o.target != null ? [o.target] : []);
+  const hiV = Math.max(o.yMax || 0, ...vals);
+  const loV = o.compact ? Math.min(...vals) - Math.max(2, (Math.max(...vals) - Math.min(...vals)) * 0.15) : Math.min(0, ...pts.map((p) => p.v));
+  const ys = o.compact ? {lo: loV, hi: Math.max(...vals) + Math.max(2, (Math.max(...vals) - Math.min(...vals)) * 0.15), ticks: []} : nice(loV, hiV * 1.05, 4);
+  const mTick = o.compact ? 0 : measure(svg, 'ax', ys.ticks.map(o.yFmt));
+  const m = {l: o.compact ? 4 : mTick + 10, r: o.compact ? 4 : 10, t: o.compact ? 6 : 10, b: o.compact ? 6 : 24};
+  const wk0 = 1, wk1 = N_PERIODS;
+  const band = (W - m.l - m.r) / (wk1 - wk0 + 1);
+  const x = (w) => m.l + (w - wk0 + 0.5) * band;
+  const y = linear(ys.lo, ys.hi, H - m.b, m.t);
+  if (!o.compact) {
+    ys.ticks.forEach((v) => { s('line', {class: 'gl', x1: m.l, x2: W - m.r, y1: y(v), y2: y(v)}, svg); s('text', {class: 'ax', x: m.l - 6, y: y(v) + 4, 'text-anchor': 'end'}, svg, o.yFmt(v)); });
+    for (let w = wk0; w <= wk1; w++) s('text', {class: 'ax', x: x(w), y: H - 6, 'text-anchor': 'middle'}, svg, periodShort(w));
+  }
+  if (o.target != null) {
+    s('line', {class: 'tgt', x1: m.l, x2: W - m.r, y1: y(o.target), y2: y(o.target)}, svg);
+    if (!o.compact) s('text', {class: 'tgt-lab', x: W - m.r, y: y(o.target) - 5, 'text-anchor': 'end'}, svg, 'Target ' + o.yFmt(o.target));
+  }
+  const colorOf = (p) => p.color || o.color;
+  if (o.kind === 'bar') {
+    pts.forEach((p) => { const y0 = y(Math.max(0, ys.lo)), y1 = y(p.v); s('rect', {x: x(p.week) - band * 0.32, y: Math.min(y0, y1), width: band * 0.64, height: Math.max(1, Math.abs(y0 - y1)), rx: 3, style: `fill:${colorOf(p)}`}, svg); });
+  } else {
+    if (pts.length > 1) s('path', {d: 'M' + pts.map((p) => `${x(p.week).toFixed(1)},${y(p.v).toFixed(1)}`).join('L'), fill: 'none', style: `stroke:${o.color};stroke-width:2.25;stroke-linejoin:round`}, svg);
+    pts.forEach((p) => s('circle', {cx: x(p.week), cy: y(p.v), r: o.compact ? 2.8 : 4, style: `fill:${colorOf(p)};stroke:var(--slate);stroke-width:1.5`}, svg));
+  }
+  const tip = tipFor(el);
+  s('rect', {x: m.l, y: 0, width: W - m.l - m.r, height: H, style: 'fill:transparent', onpointermove: (ev) => {
+    const w = Math.round((svgX(ev, svg, W) - m.l) / band - 0.5) + wk0;
+    const p = pts.find((q) => q.week === w);
+    if (!p) { tip.hide(); return; }
+    const [, ly] = localXY(ev, el);
+    tip.show(x(w) * el.clientWidth / W, ly, [{label: periodLabel(w)}, {label: o.label, value: o.yFmt(p.v), color: colorOf(p)}].concat(p.extra || []));
+  }, onpointerleave: () => tip.hide()}, svg);
+}
+
+/* ---------- 5. KPI model ---------- */
+const DEPTS = {
+  ceo: {name: 'CEO', color: 'dept-ceo'},
+  procurement: {name: 'Procurement', color: 'dept-procurement'},
+  production: {name: 'Production', color: 'dept-production'},
+  warehouse: {name: 'Warehousing', color: 'dept-warehouse'},
+  transport: {name: 'Transport and distribution', color: 'dept-transport'},
+  sales: {name: 'Sales and marketing', color: 'dept-sales'},
+  cfo: {name: 'CFO', color: 'dept-cfo'}
+};
+/* Raw inputs per review period (totals over the period). int: whole numbers; neg: negatives allowed */
+const FIELDS = {
+  otif_due: {label: 'Orders due in this period', int: true},
+  otif_ok: {label: 'Delivered on time and in full', int: true},
+  mat_planned: {label: 'Production orders planned', int: true},
+  mat_ready: {label: 'With all materials ready', int: true},
+  prod_planned: {label: 'Production orders planned', int: true},
+  prod_ok: {label: 'Completed as planned', int: true},
+  inv_counted: {label: 'Locations counted', int: true},
+  inv_ok: {label: 'Count matches records', int: true},
+  trk_towers: {label: 'Towers delivered', int: true},
+  trk_small: {label: 'Small truck trips', int: true},
+  trk_medium: {label: 'Medium truck trips', int: true},
+  trk_big: {label: 'Big truck trips', int: true},
+  cd_sold: {label: 'C+D towers sold (new orders)', int: true},
+  revenue: {label: 'Revenue (pleuro)', int: false},
+  net_profit: {label: 'Net profit (pleuro)', int: false, neg: true}
+};
+/* Review rhythm: one game week = 4 real minutes; we review every 5 game weeks = 20 minutes → 6 reviews in a 120-minute session.
+   Change PERIOD_WEEKS to review more or less often (e.g. 10 = every 40 minutes). */
+const GAME_WEEKS = 30, WEEK_MINUTES = 4, PERIOD_WEEKS = 5;
+const N_PERIODS = Math.ceil(GAME_WEEKS / PERIOD_WEEKS);
+const PERIODS = Array.from({length: N_PERIODS}, (_, i) => i + 1);
+const WEEKS = PERIODS; /* the KPI engine counts in review periods */
+const periodWeeks = (p) => [(p - 1) * PERIOD_WEEKS + 1, Math.min(GAME_WEEKS, p * PERIOD_WEEKS)];
+const periodOfWeek = (w) => Math.ceil(w / PERIOD_WEEKS);
+const PERIOD_MIN = PERIOD_WEEKS * WEEK_MINUTES;
+function periodLabel(p) { const [a, b] = periodWeeks(p); return `Review ${p} · weeks ${a}–${b} · minute ${(a - 1) * WEEK_MINUTES}–${b * WEEK_MINUTES}`; }
+function periodShort(p) { return 'R' + p; }
+const FREQ = `Every ${PERIOD_MIN} minutes (after every ${PERIOD_WEEKS} game weeks)`;
+
+/* Result: {v} value in %, {err} message, or null = not measured */
+function ratio(num, den, nameNum, nameDen) {
+  if (num == null || den == null) return null;
+  if (den === 0) return null;
+  if (num > den) return {err: `${nameNum} (${num}) is more than ${nameDen} (${den})`};
+  return {v: num / den * 100};
+}
+function truckCaps() { return {small: assetCapacity('Small truck') || 2, medium: assetCapacity('Medium truck') || 4, big: assetCapacity('Big truck') || 8}; }
+function tripsOf(w) {
+  const k = ['trk_small', 'trk_medium', 'trk_big'];
+  if (k.every((f) => w[f] == null)) return null;
+  return k.reduce((a, f) => a + (w[f] || 0), 0);
+}
+function loadFactor(w) {
+  const trips = tripsOf(w);
+  if (w.trk_towers == null || trips == null) return null;
+  const c = truckCaps();
+  const cap = (w.trk_small || 0) * c.small + (w.trk_medium || 0) * c.medium + (w.trk_big || 0) * c.big;
+  if (cap === 0) return w.trk_towers > 0 ? {err: 'Towers delivered but no trips entered'} : null;
+  if (w.trk_towers > cap) return {err: `Towers delivered (${w.trk_towers}) exceed truck capacity (${cap})`};
+  return {v: w.trk_towers / cap * 100};
+}
+function tripsPer100(w) {
+  const trips = tripsOf(w);
+  if (w.trk_towers == null || trips == null || w.trk_towers === 0) return null;
+  const lf = loadFactor(w); if (lf && lf.err) return null;
+  return {v: trips / w.trk_towers * 100};
+}
+function weeksUpTo(st, p) { return PERIODS.filter((n) => n <= p).map((n) => st.periods[n] || {}); }
+function cumShare(store, wk) {
+  const ws = weeksUpTo(store, wk); if (!ws.some((w) => w.cd_sold != null)) return null;
+  const den = model.summary ? model.summary.cdDemand : 0; if (!den) return null;
+  return {v: ws.reduce((a, w) => a + (w.cd_sold || 0), 0) / den * 100};
+}
+function cumMargin(store, wk) {
+  const ws = weeksUpTo(store, wk).filter((w) => w.revenue != null && w.net_profit != null); if (!ws.length) return null;
+  const rev = ws.reduce((a, w) => a + w.revenue, 0); if (rev === 0) return null;
+  return {v: ws.reduce((a, w) => a + w.net_profit, 0) / rev * 100};
+}
+
+const KPIS = [
+  {id: 'otif', dept: 'ceo', owner: 'Abhi', name: 'On Time In Full (OTIF)', target: 98, amber: 5,
+    objective: 'Customer satisfaction: every order arrives complete and on time (DD1 goal G1).',
+    formula: 'Orders delivered on time and in full ÷ orders due in the period × 100', frequency: FREQ,
+    source: 'Game order list: due week vs delivery week and quantities delivered (count the orders of the last 5 game weeks)',
+    action: 'List the late or short orders, ship from stock or expedite production, give the customer a new date, find the handoff that failed.',
+    inform: 'All department heads; Sales and marketing contacts the customer',
+    fields: ['otif_due', 'otif_ok'], calc: (w) => ratio(w.otif_ok, w.otif_due, 'Delivered OTIF', 'orders due')},
+  {id: 'material', dept: 'procurement', owner: 'Arnell', name: 'Material availability', target: 100, amber: 5,
+    objective: 'No production stops for missing parts (avoid stock-outs, planned purchases).',
+    formula: 'Production orders with all materials ready ÷ production orders planned × 100', frequency: FREQ + ', and before each new batch',
+    source: 'Raw-material stock in the warehouse vs the production plan',
+    action: 'Place an emergency order with the local supplier (Groen Wit, shortest lead time), re-sequence production to towers whose materials are in stock.',
+    inform: 'Production, Warehousing, CEO',
+    fields: ['mat_planned', 'mat_ready'], calc: (w) => ratio(w.mat_ready, w.mat_planned, 'Orders with materials', 'orders planned')},
+  {id: 'schedule', dept: 'production', owner: 'Malak', name: 'Production schedule adherence', target: 95, amber: 5,
+    objective: 'Make the planned towers in the planned week so deliveries leave on time.',
+    formula: 'Production orders completed as planned (tower, quantity, week) ÷ production orders planned × 100', frequency: FREQ,
+    source: 'Production plan (capacity plan, batch plan) vs machine output',
+    action: 'Find the bottleneck machine, re-plan batches to cut changeovers, move non-urgent towers to a later week.',
+    inform: 'Transport and distribution, Warehousing, CEO',
+    fields: ['prod_planned', 'prod_ok'], calc: (w) => ratio(w.prod_ok, w.prod_planned, 'Completed as planned', 'orders planned')},
+  {id: 'inventory', dept: 'warehouse', owner: 'Krystian', name: 'Inventory accuracy', target: 100, amber: 5,
+    objective: 'Stock visibility, so the promises we make customers are reliable.',
+    formula: 'Locations where counted stock = recorded stock ÷ locations counted × 100', frequency: FREQ + ' (cycle count)',
+    source: 'Physical count vs stock records',
+    action: 'Recount, correct the records, find the cause (wrong location, mis-pick), keep the warehouse tidy to avoid the messy-warehouse fine.',
+    inform: 'Procurement, Sales and marketing, CEO',
+    fields: ['inv_counted', 'inv_ok'], calc: (w) => ratio(w.inv_ok, w.inv_counted, 'Matching locations', 'locations counted')},
+  {id: 'load', dept: 'transport', owner: 'Dmytro', name: 'Truck load factor', target: 80, amber: 5,
+    objective: 'Cost efficiency: full trucks and fewer trips, without late deliveries (DD1 goal G2).',
+    formula: 'Towers delivered ÷ (trips × truck capacity) × 100. Capacity per trip: small 2, medium 4, big 8 towers', frequency: FREQ,
+    source: 'Distribution trip log (truck type per trip, towers on board)',
+    action: 'Combine orders for the same customer or area in one trip, use the smaller truck for small loads, never hold an order past its due week.',
+    inform: 'Hasan (Transport), CFO, CEO',
+    fields: ['trk_towers', 'trk_small', 'trk_medium', 'trk_big'], calc: loadFactor},
+  {id: 'share', dept: 'sales', owner: 'Krystian', name: 'C+D market share', target: null, amber: 5, cumulative: true,
+    objective: 'Win extra C and D orders, our product focus.',
+    formula: 'C+D towers sold so far ÷ C+D game-day market demand (Sales Forecast) × 100. On-track target = target × review ÷ ' + N_PERIODS, frequency: FREQ + ' (running total)',
+    source: 'Order list (C and D lines) and the Sales Forecast market demand',
+    action: 'Quote C and D actively to priority customers (Voeten & Leppens, Heijmans, Stork), review our price within the allowed range, check capacity first.',
+    inform: 'CEO, Production (capacity), CFO',
+    fields: ['cd_sold'], calc: null},
+  {id: 'margin', dept: 'cfo', owner: 'Benny', name: 'Net profit margin', target: null, amber: 5, cumulative: true,
+    objective: 'Positive cash and costs ≤ 80% of revenue (DD1 goal G2).',
+    formula: 'Net profit so far ÷ revenue so far × 100', frequency: FREQ + ' (running total)',
+    source: 'Bank statement and profit and loss from the game',
+    action: 'Stop non-essential spending, check prices against the allowed range, postpone investments, review the biggest cost lines.',
+    inform: 'CEO and all department heads',
+    fields: ['revenue', 'net_profit'], calc: null}
+];
+const KPI = Object.fromEntries(KPIS.map((k) => [k.id, k]));
+
+/* KPI value for one review period, or the running total up to that review (cumulative KPIs) */
+function kpiAt(k, wk) {
+  if (k.id === 'share') return cumShare(store, wk);
+  if (k.id === 'margin') return cumMargin(store, wk);
+  return k.calc(store.periods[wk] || {});
+}
+function hasInputs(k, wk) { const w = store.periods[wk] || {}; return k.fields.some((f) => w[f] != null); }
+function effTarget(k, wk) {
+  const t = store.targets[k.id]; if (t == null) return null;
+  return k.id === 'share' ? t * wk / N_PERIODS : t;
+}
+function statusOf(k, res, wk) {
+  if (res && res.err) return {cls: 'err', ico: '!', text: 'Check input'};
+  if (!res) return {cls: 'none', ico: '–', text: 'Not measured'};
+  const t = effTarget(k, wk);
+  if (t == null) return {cls: 'none', ico: '?', text: 'No target set'};
+  const band = Number(store.amber[k.id]) || 0;
+  if (res.v >= t - 1e-9) return {cls: 'good', ico: '✓', text: 'On target'};
+  if (res.v >= t - band) return {cls: 'warn', ico: '!', text: 'Watch'};
+  return {cls: 'bad', ico: '✕', text: 'Off target'};
+}
+function latestWeek(k) {
+  for (let wk = N_PERIODS; wk >= 1; wk--) if (hasInputs(k, wk)) return wk;
+  return null;
+}
+function forecastOf(k) {
+  if (k.id === 'share') return {text: fmtPct(model.summary.sharePct, 0), note: 'Sales Forecast share'};
+  return {text: 'Not yet', note: 'Comes from the capacity plan once imported'};
+}
+
+/* ---------- 6. Storage (browser + JSON export/import) ---------- */
+const STORE_KEY = 'bbl-factory11-kpi-v1';
+function defaultStore() {
+  return {app: 'bbl-dashboard', version: 2, periodWeeks: PERIOD_WEEKS, targets: Object.fromEntries(KPIS.map((k) => [k.id, k.target])), amber: Object.fromEntries(KPIS.map((k) => [k.id, k.amber])), periods: {}};
+}
+function cleanNumber(v, def) {
+  if (v === null || v === '') return null;
+  const n = Number(v); if (!isFinite(n)) return undefined;
+  if (!def.neg && n < 0) return undefined;
+  if (def.int && !Number.isInteger(n)) return undefined;
+  return n;
+}
+function sanitizeStore(o) {
+  const st = defaultStore(); let dropped = 0;
+  if (!o || typeof o !== 'object') throw new Error('Not a dashboard data file');
+  if (o.targets) KPIS.forEach((k) => { if (k.id in o.targets) { const v = o.targets[k.id]; st.targets[k.id] = v == null || v === '' ? null : (isFinite(Number(v)) ? Number(v) : st.targets[k.id]); } });
+  if (o.amber) KPIS.forEach((k) => { const v = Number(o.amber[k.id]); if (isFinite(v) && v >= 0) st.amber[k.id] = v; });
+  /* Version 2 stores totals per review period. Older files stored one entry per game week:
+     those counts are added up into the review period that contains the week. */
+  const add = (n, w) => {
+    for (const [f, v] of Object.entries(w)) {
+      if (!FIELDS[f]) { dropped++; continue; }
+      const c = cleanNumber(v, FIELDS[f]); if (c === undefined) { dropped++; continue; }
+      if (c === null) continue;
+      const tgt = st.periods[n] || (st.periods[n] = {});
+      tgt[f] = (tgt[f] || 0) + c;
+    }
+  };
+  const samePeriods = o.periods && (o.periodWeeks == null || Number(o.periodWeeks) === PERIOD_WEEKS);
+  if (samePeriods) for (const [pk, w] of Object.entries(o.periods)) {
+    const n = Number(pk); if (!Number.isInteger(n) || n < 1 || n > N_PERIODS || !w || typeof w !== 'object') { dropped++; continue; }
+    add(n, w);
+  }
+  if (o.periods && !samePeriods) throw new Error(`This file uses reviews of ${o.periodWeeks} game weeks; this dashboard uses ${PERIOD_WEEKS}`);
+  if (o.weeks) { for (const [wk, w] of Object.entries(o.weeks)) {
+    const n = Number(wk); if (!Number.isInteger(n) || n < 1 || n > GAME_WEEKS || !w || typeof w !== 'object') { dropped++; continue; }
+    add(periodOfWeek(n), w);
+  } st.migrated = true; }
+  st.dropped = dropped;
+  return st;
+}
+let store = defaultStore();
+let storageOK = true;
+function loadStore() {
+  try { const raw = localStorage.getItem(STORE_KEY); store = raw ? sanitizeStore(JSON.parse(raw)) : defaultStore(); }
+  catch (e) { store = defaultStore(); storageOK = false; }
+  const migrated = store.migrated; delete store.dropped; delete store.migrated;
+  if (migrated) saveStore();
+}
+function saveStore() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); storageOK = true; }
+  catch (e) { storageOK = false; }
+  const el = $('#save-state');
+  if (el) el.textContent = storageOK ? 'Saved in this browser · ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : 'Not saved: this browser blocks storage. Use Export.';
+}
+
+/* ---------- 7. Import registry (future integration, not connected) ---------- */
+const IMPORTS = [
+  {id: 'sales_forecast', name: 'Sales forecasts', dept: 'sales', feeds: 'Sales Forecast, C+D market share forecast',
+    columns: [['week', 'int:1-30'], ['tower', 'enum:A|B|C|D|E|F'], ['quantity', 'int>=0'], ['type', 'enum:expected|confirmed']]},
+  {id: 'starting_orders', name: 'Starting orders', dept: 'sales', feeds: 'OTIF orders due, C+D towers sold',
+    note: 'Same columns as the Brightspace sales-order export (factory 11 sheet saved as CSV).',
+    columns: [['orderID', 'text'], ['orderline', 'int>=0'], ['customer', 'text'], ['dateslot', 'int:1-30'], ['product_NAME', 'enum:A|B|C|D|E|F'], ['product_QUANTITY', 'int>=0'], ['product_VALUE', 'num>=0'], ['status', 'text']]},
+  {id: 'production_plan', name: 'Weekly production plans', dept: 'production', feeds: 'Schedule adherence (orders planned)',
+    columns: [['week', 'int:-4-30'], ['tower', 'enum:A|B|C|D|E|F'], ['quantity', 'int>=0']]},
+  {id: 'material_requirements', name: 'Material requirements', dept: 'procurement', feeds: 'Material availability',
+    columns: [['week', 'int:-4-30'], ['material', 'text'], ['quantity_needed', 'int>=0']]},
+  {id: 'supplier_orders', name: 'Supplier orders', dept: 'procurement', feeds: 'Material availability, costs',
+    columns: [['po_id', 'text'], ['supplier', 'text'], ['week_ordered', 'int:-4-30'], ['week_due', 'int:-4-30'], ['material', 'text'], ['quantity', 'int>=0'], ['value', 'num>=0']]},
+  {id: 'warehouse_capacity', name: 'Warehouse capacity', dept: 'warehouse', feeds: 'Inventory and location checks',
+    columns: [['week', 'int:-4-30'], ['locations_needed', 'int>=0'], ['locations_available', 'int>=0']]},
+  {id: 'transport_capacity', name: 'Transport capacity', dept: 'transport', feeds: 'Truck load factor forecast, trips per 100 towers',
+    columns: [['week', 'int:1-30'], ['trips_planned', 'int>=0'], ['towers_planned', 'int>=0'], ['capacity_towers', 'int>=0']]},
+  {id: 'investments', name: 'Investment and financial calculations', dept: 'cfo', feeds: 'Net profit margin forecast, investment budget',
+    columns: [['asset', 'text'], ['quantity', 'int>=0'], ['price', 'num>=0'], ['depreciation_rate', 'num>=0']]}
+];
+function checkValue(rule, raw) {
+  const v = String(raw ?? '').trim();
+  if (rule === 'text') return v !== '' ? null : 'is empty';
+  if (rule.startsWith('enum:')) { const ok = rule.slice(5).split('|'); return ok.includes(v) ? null : `"${v}" is not one of ${ok.join(', ')}`; }
+  if (v === '' || !/^-?\d+(\.\d+)?$/.test(v)) return `"${v}" is not a number`;
+  const n = Number(v);
+  if (rule.startsWith('int') && !Number.isInteger(n)) return `${v} is not a whole number`;
+  const range = rule.match(/:(-?\d+)-(-?\d+)$/);
+  if (range && (n < Number(range[1]) || n > Number(range[2]))) return `${v} is outside ${range[1]} to ${range[2]}`;
+  if (/>=0$/.test(rule) && n < 0) return `${v} is negative`;
+  return null;
+}
+function validateImport(ds, text) {
+  const table = parseCSV(text.replace(/^﻿/, ''));
+  if (!table.length) return {ok: false, lines: ['The file is empty.']};
+  const head = table[0].map((x) => x.trim());
+  const idx = {}; const missing = [];
+  ds.columns.forEach(([c]) => { const i = head.findIndex((x) => x.toLowerCase() === c.toLowerCase()); if (i < 0) missing.push(c); else idx[c] = i; });
+  if (missing.length) return {ok: false, lines: [`Missing columns: ${missing.join(', ')}`, `Found: ${head.join(', ')}`]};
+  const errs = []; const rows = table.slice(1).filter((r) => r.some((c) => c.trim() !== ''));
+  rows.forEach((r, i) => ds.columns.forEach(([c, rule]) => { const e = checkValue(rule, r[idx[c]]); if (e && errs.length < 8) errs.push(`Row ${i + 2}, ${c}: ${e}`); }));
+  if (!rows.length) return {ok: false, lines: ['Header found, but no data rows.']};
+  if (errs.length) return {ok: false, lines: [`${rows.length} rows checked. Problems found:`].concat(errs)};
+  return {ok: true, lines: [`Valid: ${rows.length} rows, all ${ds.columns.length} required columns present and correct.`, 'Import is not switched on yet, so nothing was loaded.']};
+}
+
+/* ---------- 8. Views ---------- */
+const VIEWS = ['market', 'forecast', 'performance', 'planning'];
+let currentView = 'market';
+let entryWeek = 1;
+
+function sourceNodes(sets) {
+  const seen = new Map();
+  ROWS.filter((r) => sets.includes(r.dataset)).forEach((r) => {
+    const detail = r.calculated ? (r.source.replace(/^calculated:?\s*/i, '') || r.attribute) : r.source;
+    const key = (r.calculated ? 'c|' : 's|') + detail;
+    if (!seen.has(key)) seen.set(key, {calc: r.calculated, detail});
+  });
+  return [...seen.values()].map((x) => h('span', null, x.calc ? h('span', {class: 'badge calc'}, 'Calculated') : null, x.detail));
+}
+function renderSources() { $$('[data-src]').forEach((el) => el.replaceChildren(...sourceNodes(el.dataset.src.split(' ')))); }
+
+function renderScenario() {
+  const sm = model.summary;
+  $('#scenario-text').replaceChildren(h('b', null, sm.factories), ' factories · ', h('b', null, sm.sharePct + '%'), ' C+D · ', h('b', null, params.latest !== false ? '2025' : '2026'), ' base');
+  $$('[data-sum]').forEach((el) => { el.textContent = fmt0(sm[el.dataset.sum]); });
+  const total = model.forecast.reduce((a, r) => a + r.volume2025, 0), cd = model.forecast.filter((r) => r.focus).reduce((a, r) => a + r.volume2025, 0);
+  $('#market-lede').replaceChildren('C and D are ', h('b', null, Math.round(cd / total * 100) + '%'), ' of the 2025 market (', h('b', null, fmt0(cd)), ' of ', h('b', null, fmt0(total)), ' towers, 9-factory data): the smallest segments, with the lowest material cost per tower.');
+}
+function syncInputs() {
+  const act = document.activeElement;
+  const fac = $('#in-factories'), sh = $('#in-share'), lt = $('#in-latest');
+  if (act !== fac) fac.value = params.factories;
+  if (act !== sh) sh.value = Math.round(params.share * 1000) / 10;
+  lt.checked = params.latest !== false;
+  $$('input[data-tower]').forEach((el) => {
+    const r = model.economics.find((x) => x.letter === el.dataset.tower);
+    if (r && act !== el) el.value = r.ourPrice;
+    el.classList.toggle('out', !!(r && !r.inRange));
+  });
+  $('#price-warn').hidden = !model.economics.some((r) => !r.inRange);
+}
+function renderTables() {
+  const ct = $('#customer-table tbody'); ct.replaceChildren();
+  const maxSh = Math.max(...model.customers.map((r) => r.share2025));
+  model.customers.forEach((r) => ct.appendChild(h('tr', null,
+    h('td', null, h('span', {class: 'tw'}, h('span', {class: 'sw', style: `background:${custColor(r.customer)}`}), r.customer)),
+    h('td', null, h('span', {class: 'pill ' + String(r.location).toLowerCase()}, r.location)),
+    h('td', null, h('span', {class: 'minibar', style: `width:${Math.round(r.share2025 / maxSh * 34)}px;background:${custColor(r.customer)}`}), r.share2025 + '%'))));
+  const ft = $('#forecast-table tbody'); ft.replaceChildren();
+  model.forecast.forEach((r) => ft.appendChild(h('tr', {class: r.focus ? 'focus' : null},
+    h('td', null, h('span', {class: 'tw'}, h('span', {class: 'sw', style: `background:${towerColor(r.tower)}`}), r.tower)),
+    h('td', null, fmt0(r.volume2025)), h('td', null, r.growthPct.toFixed(1) + '%'), h('td', null, fmt0(r.base)), h('td', null, fmt0(r.demand)),
+    h('td', null, r.focus ? fmt0(r.ourOrders) : '–'), h('td', null, fmt0(r.price)), h('td', null, r.focus ? fmt0(r.revenue) : '–'))));
+  const et = $('#econ-table tbody'); et.replaceChildren();
+  model.economics.forEach((r) => et.appendChild(h('tr', {class: r.focus ? 'focus' : null},
+    h('td', null, h('span', {class: 'tw'}, h('span', {class: 'sw', style: `background:${towerColor(r.tower)}`}), r.tower)),
+    h('td', null, fmt0(r.materialCost)), h('td', null, fmt0(r.price2025)), h('td', {class: r.inRange ? null : 'bad'}, fmt0(r.ourPrice)),
+    h('td', {class: r.margin < 0 ? 'bad' : null}, fmt0(r.margin)), h('td', null, r.marginPct.toFixed(1) + '%'), h('td', null, fmt0(r.dataMargin)))));
+}
+
+function drawMarketCharts() {
+  const off = model.forecast[0] && model.forecast[0].forecastYear === 2026;
+  const ss = series('sales_volume').map((sr) => {
+    const fr = model.forecast.find((r) => r.tower === sr.key); const last = sr.points[sr.points.length - 1];
+    return {...sr, label: sr.key, hi: isCD(sr.key), color: towerColor(sr.key), width: isCD(sr.key) ? 3.25 : 1.75, ext: off && fr ? [last, {x: 2026, y: Math.round(fr.baseExact), fc: true}] : null};
+  });
+  lineChart($('[data-chart="market"]'), {series: ss, x: [2011, off ? 2026 : 2025], yMin: 0, yFmt: fmt0, height: 330, aria: 'Line chart of sales volume per tower type, 2011 to 2025, towers C and D highlighted'});
+  const ps = series('price').filter((sr) => sr.points.length > 1).map((sr) => ({...sr, label: sr.key, hi: isCD(sr.key), color: towerColor(sr.key), width: isCD(sr.key) ? 3.25 : 1.75}));
+  lineChart($('[data-chart="prices"]'), {series: ps, x: [2015, 2025], yMin: 80, yFmt: fmt0, height: 290, aria: 'Line chart of standard price per tower type, 2015 to 2025'});
+  const lim = (t, a) => (ROWS.find((r) => r.dataset === 'price_limit' && r.item === t && r.attribute === a) || {}).value;
+  const std = (t) => (ROWS.find((r) => r.dataset === 'price' && r.item === t && r.year === 2025) || {}).value;
+  const items = [...new Set(ROWS.filter((r) => r.dataset === 'price_limit').map((r) => r.item))];
+  rangeChart($('[data-chart="range"]'), items.map((t) => { const ec = model.economics.find((r) => r.tower === t);
+    return {label: t.replace('Unique Tower - ', 'Unique '), hi: isCD(t), min: lim(t, 'minimum price'), max: lim(t, 'maximum price'), std: std(t), ours: ec ? ec.ourPrice : null, inRange: ec ? ec.inRange : true}; }),
+  {aria: 'Allowed 2025 price range per tower with the standard price and our price'});
+  const pct = (v) => Math.round(v * 100) + '%';
+  lineChart($('[data-chart="customers"]'), {series: series('customer_share').map((sr) => ({...sr, label: sr.key, hi: true, color: custColor(sr.key), width: 2.4})), x: [2011, 2025], yMin: 0, yFmt: pct, height: 290, aria: 'Line chart of market share per customer, 2011 to 2025'});
+}
+function drawForecastCharts() {
+  const yr = model.forecast[0] ? model.forecast[0].forecastYear : 2025;
+  barChart($('[data-chart="forecast"]'), model.forecast.map((r) => ({label: r.tower, hi: r.focus,
+    segs: r.focus ? [{v: r.ourOrders, color: towerColor(r.tower)}, {v: r.demand - r.ourOrders, color: towerColor(r.tower), opacity: 0.35}] : [{v: r.demand, color: 'var(--muted-series)'}],
+    end: r.focus ? `${fmt0(r.demand)} · ours ${fmt0(r.ourOrders)}` : fmt0(r.demand),
+    tip: [{label: `${r.tower} · game day (${yr} base)`}, {label: 'Demand', value: fmt0(r.demand)}].concat(r.focus ? [{label: 'Our target', value: fmt0(r.ourOrders), color: towerColor(r.tower)}, {label: 'Revenue', value: fmt0(r.revenue)}] : [])})),
+  {aria: 'Bar chart of expected game-day demand per tower with our C and D target'});
+  barChart($('[data-chart="econ"]'), model.economics.map((r) => ({label: r.tower, hi: r.focus,
+    segs: [{v: Math.min(r.materialCost, r.ourPrice), color: 'var(--mint)'}, {v: r.margin, color: 'var(--sky)'}],
+    end: fmt0(r.ourPrice), bad: !r.inRange || r.margin < 0,
+    tip: [{label: r.tower}, {label: 'Material cost', value: fmt0(r.materialCost), color: 'var(--mint)'}, {label: 'Margin', value: fmt0(r.margin), color: 'var(--sky)'}, {label: 'Our price', value: fmt0(r.ourPrice)}, {label: 'Allowed', value: `${fmt0(r.minPrice)}–${fmt0(r.maxPrice)}`}]})),
+  {aria: 'Stacked bars per tower: material cost plus margin equals our price'});
+}
+
+/* --- Factory Performance --- */
+function kpiValueText(res) { return res && !res.err ? fmtPct(res.v) : null; }
+function renderKPIs() {
+  const grid = $('#kpi-grid'); const openIds = new Set($$('details.more[open]', grid).map((d) => d.dataset.kpi));
+  sparkSpecs = [];
+  grid.replaceChildren();
+  KPIS.forEach((k) => {
+    const d = DEPTS[k.dept]; const wk = latestWeek(k);
+    const res = wk ? kpiAt(k, wk) : null; const st = statusOf(k, res, wk || 1);
+    const tgt = store.targets[k.id]; const et = wk ? effTarget(k, wk) : tgt;
+    const fc = forecastOf(k);
+    const valText = kpiValueText(res);
+    const measured = WEEKS.map((w) => ({week: w, r: hasInputs(k, w) ? kpiAt(k, w) : null})).filter((p) => p.r && !p.r.err);
+    const sparkEl = h('div', {class: 'chart', 'data-spark': k.id});
+    const card = h('article', {class: 'kpi', id: 'kpi-' + k.id, style: `--dept:${cssVar(d.color)}`},
+      h('div', {class: 'kpi-top'}, h('span', {class: 'dept'}, h('i'), d.name), h('span', {class: 'status ' + st.cls}, h('span', {class: 'ico'}, st.ico), st.text)),
+      h('div', null, h('div', {class: 'kpi-name'}, k.name), h('div', {class: 'kpi-owner'}, `Owner: ${k.owner} · every ${PERIOD_MIN} min` + (k.cumulative ? ' · running total' : ''))),
+      h('div', {class: 'kpi-main'}, h('span', {class: 'kpi-val' + (valText ? '' : ' nm')}, valText || (res && res.err ? 'Input error' : 'Not measured')),
+        h('span', {class: 'kpi-when', title: wk ? periodLabel(wk) : null}, wk ? (k.cumulative ? `Total to review ${wk}` : `Review ${wk} · weeks ${periodWeeks(wk).join('–')}`) : 'No data recorded')),
+      res && res.err ? h('div', {class: 'msg', style: 'font-size:12px;color:#FF9CA1'}, res.err) : null,
+      h('div', {class: 'tfa'},
+        h('div', {class: 't'}, h('span', null, 'Target'), h('b', {title: k.id === 'share' && tgt != null ? `Full-game target ${fmtPct(tgt, 0)}; on-track target at review ${wk || 1} of ${N_PERIODS}` : null}, tgt == null ? 'Not set' : (k.id === 'share' && wk ? fmtPct(et) + ' (R' + wk + ')' : '≥ ' + fmtPct(tgt, tgt % 1 ? 1 : 0)))),
+        h('div', {class: 'f', title: fc.note}, h('span', null, 'Forecast'), h('b', null, fc.text)),
+        h('div', {class: 'a'}, h('span', null, 'Actual'), h('b', null, valText || '—'))),
+      measured.length >= 3 ? h('div', {class: 'spark'}, sparkEl) : h('div', {class: 'hint'}, `Trend appears after 3 reviews (${measured.length} of ${N_PERIODS} so far)`),
+      h('details', {class: 'more', 'data-kpi': k.id, open: openIds.has(k.id)}, h('summary', null, 'Details and targets'),
+        h('dl', {class: 'facts'},
+          h('dt', null, 'Responsible'), h('dd', null, `${k.owner}, ${d.name}`),
+          h('dt', null, 'Objective'), h('dd', null, k.objective),
+          h('dt', null, 'Formula'), h('dd', null, k.formula),
+          h('dt', null, 'Frequency'), h('dd', null, k.frequency),
+          h('dt', null, 'Data source'), h('dd', null, k.source),
+          h('dt', null, 'If off target'), h('dd', null, k.action),
+          h('dt', null, 'Inform'), h('dd', null, k.inform)),
+        h('div', {class: 'tset'},
+          h('div', {class: 'field'}, h('label', {for: 'tg-' + k.id}, 'Target (%)'), h('input', {id: 'tg-' + k.id, type: 'number', step: '0.1', min: k.id === 'margin' ? null : '0', max: '100', value: tgt == null ? '' : tgt, placeholder: 'Not set', 'data-target': k.id})),
+          h('div', {class: 'field'}, h('label', {for: 'am-' + k.id}, 'Amber band (points below target)'), h('input', {id: 'am-' + k.id, type: 'number', step: '0.5', min: '0', max: '100', value: store.amber[k.id], 'data-amber': k.id})))));
+    grid.appendChild(card);
+    if (measured.length >= 3) sparkSpecs.push({el: sparkEl, o: {points: measured.map((p) => ({week: p.week, v: p.r.v, color: statusColor(k, p.r, p.week)})), kind: 'line', color: cssVar(d.color), target: k.id === 'share' ? null : tgt, yFmt: (v) => fmtPct(v), label: k.name, compact: true, height: 60, aria: k.name + ' trend per review'}});
+  });
+  if (currentView === 'performance') drawSparks();
+}
+let sparkSpecs = [];
+function drawSparks() { sparkSpecs.forEach((sp) => { if (sp.el.isConnected) weekChart(sp.el, sp.o); }); }
+function statusColor(k, r, wk) { const st = statusOf(k, r, wk).cls; return st === 'good' ? 'var(--status-good)' : st === 'warn' ? 'var(--status-warn)' : st === 'bad' || st === 'err' ? 'var(--status-bad)' : 'var(--status-none)'; }
+
+function renderAttention() {
+  const list = $('#attn-list'); list.replaceChildren();
+  const items = []; let notMeasured = 0, noTarget = 0;
+  KPIS.forEach((k) => {
+    const wk = latestWeek(k); if (!wk) { notMeasured++; return; }
+    const res = kpiAt(k, wk); const st = statusOf(k, res, wk);
+    if (st.cls === 'none') { if (!res) notMeasured++; else noTarget++; return; }
+    if (st.cls === 'good') return;
+    items.push({k, wk, res, st});
+  });
+  const rank = {err: 0, bad: 1, warn: 2};
+  items.sort((a, b) => rank[a.st.cls] - rank[b.st.cls]);
+  items.forEach(({k, wk, res, st}) => {
+    const d = DEPTS[k.dept]; const t = effTarget(k, wk);
+    list.appendChild(h('div', {class: 'attn-item ' + st.cls},
+      h('span', {class: 'status ' + st.cls}, h('span', {class: 'ico'}, st.ico), st.text),
+      h('div', {class: 'what'}, h('b', null, `${k.name}: ${res.err ? 'input error' : fmtPct(res.v)}${t != null && !res.err ? ' vs target ' + fmtPct(t) : ''} · review ${wk} (weeks ${periodWeeks(wk).join('–')})`),
+        h('span', null, res.err ? res.err : k.action), h('span', null, `Owner ${k.owner} (${d.name}) · inform ${k.inform}`)),
+      h('a', {class: 'btn small', href: '#kpi-' + k.id, onclick: (e) => { e.preventDefault(); const c = $('#kpi-' + k.id); c.scrollIntoView({behavior: 'smooth', block: 'center'}); const det = $('details', c); if (det) det.open = true; }}, 'Details')));
+  });
+  if (!items.length) list.appendChild(h('div', {class: 'attn-empty'}, h('span', {class: 'status none'}, h('span', {class: 'ico'}, '✓'), 'Nothing flagged'), 'No measured KPI is below its target or amber band.'));
+  const parts = [];
+  if (notMeasured) parts.push(`${notMeasured} KPI${notMeasured > 1 ? 's' : ''} not measured yet`);
+  if (noTarget) parts.push(`${noTarget} measured without a target`);
+  if (parts.length) list.appendChild(h('p', {class: 'hint', style: 'margin:0'}, parts.join(' · ') + '.'));
+  const measuredCount = KPIS.filter((k) => { const wk = latestWeek(k); return wk && kpiAt(k, wk) && !kpiAt(k, wk).err; }).length;
+  const onTarget = KPIS.filter((k) => { const wk = latestWeek(k); return wk && statusOf(k, kpiAt(k, wk), wk).cls === 'good'; }).length;
+  $('#perf-lede').replaceChildren(measuredCount ? h('span', null, h('b', null, onTarget), ` of `, h('b', null, measuredCount), ' measured KPIs are on target. ') : `No KPI has been measured yet: record the totals at each ${PERIOD_MIN}-minute review below. `,
+    'Targets are provisional; figures appear only from data you enter.');
+}
+
+function renderEntry() {
+  $('#wk-label').textContent = 'Review ' + entryWeek;
+  $('#wk-range').textContent = periodLabel(entryWeek).replace(/^Review \d+ · /, '');
+  const sel = $('#wk-select');
+  if (!sel.options.length) PERIODS.forEach((p) => sel.appendChild(h('option', {value: p}, periodLabel(p))));
+  PERIODS.forEach((p, i) => { sel.options[i].textContent = periodLabel(p) + (store.periods[p] ? ' ●' : ''); });
+  sel.value = String(entryWeek);
+  $('#wk-prev').disabled = entryWeek <= 1; $('#wk-next').disabled = entryWeek >= N_PERIODS;
+  const grid = $('#entry-grid');
+  grid.replaceChildren();
+  const w = store.periods[entryWeek] || {};
+  KPIS.forEach((k) => {
+    const d = DEPTS[k.dept];
+    const res = kpiAt(k, entryWeek);
+    const st = statusOf(k, res, entryWeek);
+    const box = h('div', {class: 'entry', style: `--dept:${cssVar(d.color)}`},
+      h('div', {class: 'fieldset-title'}, h('span', null, k.name), h('span', {class: 'kpi-owner'}, k.owner)),
+      ...k.fields.map((f) => h('div', {class: 'row'}, h('label', {for: `e-${entryWeek}-${f}`}, FIELDS[f].label),
+        h('input', {id: `e-${entryWeek}-${f}`, type: 'number', step: FIELDS[f].int ? '1' : 'any', min: FIELDS[f].neg ? null : '0', value: w[f] == null ? '' : w[f], 'data-field': f, class: res && res.err ? 'err' : null, inputmode: 'decimal'}))),
+      h('div', {class: 'res'}, h('span', null, k.cumulative ? 'Running total' : 'Result'), h('span', {class: 'cellstat ' + st.cls}, h('i'), h('b', null, res && !res.err ? fmtPct(res.v) : (res && res.err ? 'Check input' : 'Not measured')))),
+      res && res.err ? h('div', {class: 'msg'}, res.err) : null,
+      k.id === 'load' ? h('div', {class: 'hint'}, (() => { const t = tripsPer100(w); return 'Trips per 100 towers: ' + (t ? fmt1(t.v) : 'not measured'); })()) : null,
+      k.id === 'share' ? h('div', {class: 'hint'}, `Market: ${fmt0(model.summary.cdDemand)} C+D towers at ${model.summary.factories} factories (Sales Forecast)`) : null);
+    grid.appendChild(box);
+  });
+}
+
+function renderHistory() {
+  const thead = $('#history-table thead'), tbody = $('#history-table tbody');
+  thead.replaceChildren(h('tr', null, h('th', null, 'Review'), ...KPIS.map((k) => h('th', null, k.name.replace(' (OTIF)', ''))), h('th', null, 'Trips / 100 towers')));
+  tbody.replaceChildren();
+  const weeks = PERIODS.filter((w) => store.periods[w]);
+  if (!weeks.length) { tbody.appendChild(h('tr', null, h('td', {colspan: KPIS.length + 2, style: 'text-align:left;color:var(--text-3)'}, 'No reviews recorded yet.'))); return; }
+  weeks.forEach((w) => tbody.appendChild(h('tr', null, h('td', {title: periodLabel(w)}, `Review ${w} (W${periodWeeks(w).join('–')})`),
+    ...KPIS.map((k) => { const r = hasInputs(k, w) ? kpiAt(k, w) : null; const st = statusOf(k, r, w);
+      return h('td', null, h('span', {class: 'cellstat ' + st.cls, title: st.text}, h('i'), r && !r.err ? fmtPct(r.v) : r && r.err ? 'error' : '—')); }),
+    h('td', null, (() => { const t = tripsPer100(store.periods[w]); return t ? fmt1(t.v) : '—'; })()))));
+}
+
+function drawPerformanceCharts() {
+  drawSparks();
+  const trips = WEEKS.map((w) => { const t = tripsPer100(store.periods[w] || {}); return {week: w, v: t ? t.v : null}; });
+  weekChart($('[data-chart="trips"]'), {points: trips, kind: 'bar', color: 'var(--mint)', yFmt: fmt1, label: 'Trips per 100 towers', aria: 'Trips per 100 towers per review', empty: 'Not measured: enter towers delivered and trips'});
+  const otif = WEEKS.map((w) => { const r = KPI.otif.calc(store.periods[w] || {}); return {week: w, v: r && !r.err ? r.v : null, color: r && !r.err ? statusColor(KPI.otif, r, w) : null}; });
+  weekChart($('[data-chart="otifweek"]'), {points: otif, kind: 'line', color: 'var(--dept-ceo)', target: store.targets.otif, yMax: 100, yFmt: (v) => fmtPct(v, 0), label: 'OTIF', aria: 'OTIF per review', empty: 'Not measured: enter orders due and delivered OTIF'});
+  const both = WEEKS.filter((w) => tripsPer100(store.periods[w] || {}) && (() => { const r = KPI.otif.calc(store.periods[w] || {}); return r && !r.err; })());
+  const v = $('#consol-verdict');
+  if (both.length < 4) { v.textContent = `Needs 4 reviews with both trips and OTIF measured to compare the first and the latest reviews (${both.length} of ${N_PERIODS} so far).`; return; }
+  const first = both.slice(0, 2), last = both.slice(-2);
+  const avg = (ws, f) => ws.reduce((a, w) => a + f(w), 0) / ws.length;
+  const tp = (w) => tripsPer100(store.periods[w]).v, ot = (w) => KPI.otif.calc(store.periods[w]).v;
+  const dT = avg(last, tp) - avg(first, tp), dO = avg(last, ot) - avg(first, ot);
+  const verdict = dT < 0 && dO >= -0.5 ? 'Consolidation works: fewer trips per 100 towers and OTIF held.' : dT < 0 ? 'Fewer trips, but OTIF dropped: check whether orders were held back to fill trucks.' : 'No reduction in trips per 100 towers yet.';
+  v.textContent = `${verdict} Reviews ${first.join(' and ')} vs ${last.join(' and ')}: trips per 100 towers ${fmt1(avg(first, tp))} → ${fmt1(avg(last, tp))}, OTIF ${fmtPct(avg(first, ot))} → ${fmtPct(avg(last, ot))}.`;
+}
+
+function renderPlanning() {
+  const grid = $('#ds-grid'); if (grid.childElementCount) return;
+  const sel = $('#val-ds');
+  IMPORTS.forEach((ds) => {
+    sel.appendChild(h('option', {value: ds.id}, ds.name));
+    const d = DEPTS[ds.dept];
+    grid.appendChild(h('article', {class: 'ds', style: `border-top:3px solid ${cssVar(d.color)}`},
+      h('div', {class: 'kpi-top'}, h('span', {class: 'dept', style: `--dept:${cssVar(d.color)}`}, h('i'), d.name), h('span', {class: 'state'}, 'Not connected')),
+      h('h3', null, ds.name), h('p', {class: 'sub'}, 'Will feed: ' + ds.feeds),
+      ds.note ? h('p', {class: 'hint', style: 'margin:0'}, ds.note) : null,
+      h('ul', null, ...ds.columns.map(([c, rule]) => h('li', null, h('code', null, c), ' · ', ruleText(rule))))));
+  });
+}
+function ruleText(rule) {
+  if (rule === 'text') return 'text, required';
+  if (rule.startsWith('enum:')) return 'one of ' + rule.slice(5).split('|').join(', ');
+  const range = rule.match(/:(-?\d+)-(-?\d+)$/);
+  const kind = rule.startsWith('int') ? 'whole number' : 'number';
+  return range ? `${kind} from ${range[1]} to ${range[2]}` : kind + ', 0 or more';
+}
+
+function drawVisibleCharts() {
+  if (currentView === 'market') drawMarketCharts();
+  if (currentView === 'forecast') drawForecastCharts();
+  if (currentView === 'performance') drawPerformanceCharts();
+}
+function renderAll() {
+  recompute(); renderScenario(); syncInputs(); renderTables();
+  renderKPIs(); renderAttention(); renderEntry(); renderHistory();
+  drawVisibleCharts();
+}
+function renderPerformance() { renderKPIs(); renderAttention(); renderEntry(); renderHistory(); if (currentView === 'performance') drawPerformanceCharts(); }
+/* Redraw after the browser has moved focus (Tab, click), then put focus back where the user went */
+function rerenderKeepFocus() {
+  setTimeout(() => {
+    const a = document.activeElement; const id = a && a.id; const sy = window.scrollY;
+    renderPerformance();
+    const el = id && document.getElementById(id);
+    if (el) { el.focus({preventScroll: true}); if (el.select && el.type === 'number') try { el.select(); } catch (e) { /* ignore */ } }
+    window.scrollTo(0, sy);
+  }, 0);
+}
+
+function showView(v, push) {
+  if (!VIEWS.includes(v)) v = 'market';
+  currentView = v;
+  VIEWS.forEach((id) => { $('#' + id).hidden = id !== v; $('#tab-' + id).setAttribute('aria-selected', String(id === v)); });
+  if (push && location.hash !== '#' + v) history.replaceState(null, '', '#' + v);
+  if (v === 'planning') renderPlanning();
+  drawVisibleCharts();
+}
+
+/* ---------- 9. Events ---------- */
+function bindEvents() {
+  $$('.tab').forEach((t) => t.addEventListener('click', () => { showView(t.dataset.view, true); window.scrollTo({top: 0}); }));
+  $('#scenario-chip').addEventListener('click', (e) => { e.preventDefault(); showView('forecast', true); $('#inputs').scrollIntoView({behavior: 'smooth'}); });
+  window.addEventListener('hashchange', () => showView(location.hash.slice(1), false));
+  const set = (p) => { Object.assign(params, p); renderAll(); };
+  const fac = $('#in-factories'), sh = $('#in-share');
+  fac.addEventListener('input', () => { const v = Number(fac.value); if (fac.value !== '' && Number.isInteger(v) && v >= 1 && v <= 30) set({factories: v}); });
+  sh.addEventListener('input', () => { const v = Number(sh.value); if (sh.value !== '' && v >= 0 && v <= 100) set({share: Math.round(v * 10) / 1000}); });
+  $('#in-latest').addEventListener('change', (e) => set({latest: e.target.checked}));
+  $$('input[data-tower]').forEach((el) => el.addEventListener('input', () => { const v = Number(el.value), key = 'price_' + el.dataset.tower; if (el.value === '') set({[key]: null}); else if (v > 0) set({[key]: v}); }));
+  $('#in-reset').addEventListener('click', () => { params = {...DEFAULT_PARAMS}; renderAll(); });
+
+  // KPI targets and amber bands (delegated: cards are re-rendered)
+  $('#kpi-grid').addEventListener('change', (e) => {
+    const t = e.target;
+    if (t.dataset.target) { const v = t.value.trim(); store.targets[t.dataset.target] = v === '' ? null : (isFinite(Number(v)) ? Number(v) : store.targets[t.dataset.target]); saveStore(); rerenderKeepFocus(); }
+    if (t.dataset.amber) { const v = Number(t.value); if (isFinite(v) && v >= 0) { store.amber[t.dataset.amber] = v; saveStore(); } rerenderKeepFocus(); }
+  });
+  // Review-period entry
+  $('#entry-grid').addEventListener('change', (e) => {
+    const t = e.target; const f = t.dataset.field; if (!f) return;
+    const c = cleanNumber(t.value.trim() === '' ? null : t.value, FIELDS[f]);
+    if (c === undefined) { t.classList.add('err'); t.title = FIELDS[f].int ? 'Enter a whole number, 0 or more' : 'Enter a number'; return; }
+    const w = store.periods[entryWeek] || {};
+    if (c === null) delete w[f]; else w[f] = c;
+    if (Object.keys(w).length) store.periods[entryWeek] = w; else delete store.periods[entryWeek];
+    saveStore(); rerenderKeepFocus();
+  });
+  const goWeek = (n) => { entryWeek = Math.max(1, Math.min(N_PERIODS, n)); renderEntry(); };
+  $('#wk-prev').addEventListener('click', () => goWeek(entryWeek - 1));
+  $('#wk-next').addEventListener('click', () => goWeek(entryWeek + 1));
+  $('#wk-select').addEventListener('change', (e) => goWeek(Number(e.target.value)));
+
+  // Export / import / clear
+  $('#btn-export').addEventListener('click', () => {
+    const data = JSON.stringify({...store, exported: new Date().toISOString()}, null, 2);
+    const a = h('a', {href: URL.createObjectURL(new Blob([data], {type: 'application/json'})), download: `bbl-kpi-data-${new Date().toISOString().slice(0, 10)}.json`});
+    document.body.appendChild(a); a.click(); a.remove();
+    $('#io-msg').textContent = 'Exported. Import this file on another computer to continue.';
+  });
+  $('#file-import').addEventListener('change', (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      try {
+        const o = JSON.parse(rd.result);
+        if (o.app !== 'bbl-dashboard') throw new Error('This is not a BBL dashboard data file');
+        const st = sanitizeStore(o); const dropped = st.dropped, migrated = st.migrated; delete st.dropped; delete st.migrated; store = st; saveStore(); renderPerformance();
+        $('#io-msg').textContent = `Imported ${Object.keys(store.periods).length} recorded reviews.` + (migrated ? ' Weekly data was added up into reviews.' : '') + (dropped ? ` ${dropped} invalid values were skipped.` : '');
+      } catch (err) { $('#io-msg').textContent = 'Import failed: ' + err.message + '. Nothing was changed.'; }
+      e.target.value = '';
+    };
+    rd.readAsText(file);
+  });
+  const clr = $('#btn-clear'), yes = $('#btn-clear-confirm'), no = $('#btn-clear-cancel');
+  clr.addEventListener('click', () => { clr.hidden = true; yes.hidden = false; no.hidden = false; });
+  no.addEventListener('click', () => { clr.hidden = false; yes.hidden = true; no.hidden = true; });
+  yes.addEventListener('click', () => { store = defaultStore(); saveStore(); renderPerformance(); clr.hidden = false; yes.hidden = true; no.hidden = true; $('#io-msg').textContent = 'All KPI data and targets were cleared.'; });
+
+  // Import check (validation only)
+  $('#val-file').addEventListener('change', (e) => {
+    const file = e.target.files[0]; const out = $('#val-out'); if (!file) return;
+    const ds = IMPORTS.find((d) => d.id === $('#val-ds').value);
+    const rd = new FileReader();
+    rd.onload = () => { const r = validateImport(ds, String(rd.result)); out.textContent = `${ds.name} · ${file.name}\n` + r.lines.join('\n'); out.className = 'validate-out ' + (r.ok ? 'ok' : 'bad'); e.target.value = ''; };
+    rd.readAsText(file);
+  });
+
+  let rt = null;
+  window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { drawVisibleCharts(); renderKPIs(); }, 150); });
+}
+
+/* ---------- 10. Boot ---------- */
+function boot() {
+  ROWS = loadBlokko($('#csv-blokko').textContent);
+  loadStore();
+  const lw = Math.max(0, ...WEEKS.filter((w) => store.periods[w]));
+  entryWeek = lw || 1;
+  renderSources();
+  bindEvents();
+  renderAll();
+  showView(location.hash.slice(1) || 'market', false);
+  $('#save-state').textContent = storageOK ? 'Saved in this browser automatically' : 'This browser blocks storage. Use Export to keep your data.';
+}
+/* Exposed for testing only */
+window.BBL = {calcForecast, calcEconomics, calcSummary, ratio, loadFactor, tripsPer100, statusOf, kpiAt, KPIS, validateImport, IMPORTS, sanitizeStore, get store() { return store; }, get model() { return model; }, get params() { return params; }};
+boot();
+
+</script>
+</body>
+</html>
